@@ -1,4 +1,5 @@
-# One known Bluetooth device per line.
+# Bluetooth devices excluded from filtered output only.
+# Raw acquisition remains preserved.
 # Format:
 # AA:BB:CC:DD:EE:FF optional description
 #

@@ -3,13 +3,12 @@ DOCUMENT INFORMATION
 Document Name: README.md
 Author: Bruno DELNOZ
 Email: bruno.delnoz@protonmail.com
-Version: v1.1.2
-Date / Time: 2026-09-23
-Project: bt_air_suite / bt_air_suite.sh
-Short description: Project overview, canonical CLI, Red Team profiles and runtime layout.
+Version: v2.0.0
+Date / Time: 2026-09-23 07:57
+Project: bt_air_suite
+Short description: Main documentation for the Bluetooth/BLE air suite.
 -->
-
-# bt_air_suite.sh — v1.1.2
+# bt_air_suite.sh — v2.0.0
 
 ## Purpose
 
@@ -157,18 +156,21 @@ bt_air_suite/
 ├── INSTALL.md
 ├── CHANGELOG.md
 ├── WHY.md
+├── EXAMPLES.md
 ├── SPECIFICATIONS.md
-├── SPECIFICATIONS_FR.md
 ├── SPECIFICATIONS_GLOBAL.md
-├── SPECIFICATIONS_GLOBAL_FR.md
 ├── myinfo/
 │   ├── known_devices.txt
-│   └── exclusions.txt
+│   ├── exclusionsbt.txt
+│   ├── exclusionsbt_enrichi.txt
+│   ├── exclusionsbt_oui_resolved.txt
+│   └── oui.txt
 └── .results/
     ├── raw/
     ├── csv/
     ├── jsonl/
     ├── filtered/
+    ├── enriched/
     ├── generated/
     ├── captures/
     ├── logs/
@@ -258,10 +260,96 @@ Secure local controller:
 
 `myinfo/known_devices.txt` is the explicit known-device baseline.
 
-`myinfo/exclusions.txt` removes selected MAC addresses from filtered outputs.
+`myinfo/exclusionsbt.txt` removes selected MAC addresses from filtered outputs.
 
 Bluetooth LE devices can use changing/randomized addresses, so a MAC must not automatically be treated as proof of physical identity.
 
 ## Documentation set
 
 The package intentionally mirrors the Wi-Fi documentation set, whose canonical repository architecture includes README, INSTALL, CHANGELOG, WHY, task specifications and global specifications.
+
+
+## v2.0.0 major behavior
+
+v2.0.0 aligns the Bluetooth monitor workflow with the interval/post-process behavior of `wifi_air_suite.sh`.
+
+### Monitor session behavior
+
+- `--duration` is expressed in seconds.
+- `--interval` is expressed in minutes.
+- `--duration 300 --interval 1` produces five independent 60-second scan slices.
+- a final remainder slice is used when total duration is not divisible by the interval;
+- `--archive-old` runs once before the first acquisition slice;
+- `--post-process` runs after every completed slice before the next one starts;
+- a post-processing error is reported but does not cancel the following interval;
+- `--open-kate` opens each newly generated filtered Markdown immediately and asynchronously.
+
+Example:
+
+```bash
+./bt_air_suite.sh --exec --monitor \
+  --redteam \
+  --duration 300 \
+  --interval 1 \
+  --post-process \
+  --open-kate \
+  --nolog
+```
+
+### OUI database
+
+The canonical local OUI database is:
+
+```text
+myinfo/oui.txt
+```
+
+Refresh it with:
+
+```bash
+./bt_air_suite.sh --update-oui
+```
+
+The update workflow downloads the official IEEE OUI text database over HTTPS into a temporary file in `myinfo/`, validates minimum size and entry count, preserves the previous database as `myinfo/oui.txt.bak`, then performs an atomic same-directory rename to `myinfo/oui.txt`.
+
+A failed download or validation never replaces the active database.
+
+### Bluetooth address type and vendor resolution
+
+Each inventory row includes:
+
+```text
+address_type
+oui_prefix
+vendor
+oui_status
+```
+
+Possible address classifications include:
+
+```text
+public
+random-static
+random-resolvable
+random-non-resolvable
+random-reserved
+unknown
+```
+
+OUI manufacturer attribution is performed only when BlueZ identifies the address as public. Random/private BLE addresses are explicitly marked instead of being assigned a possibly false vendor.
+
+### Bluetooth exclusions
+
+Canonical files:
+
+```text
+myinfo/exclusionsbt.txt
+myinfo/exclusionsbt_enrichi.txt
+myinfo/exclusionsbt_oui_resolved.txt
+```
+
+`exclusionsbt.txt` drives filtered scan output. The enriched files provide offline OUI context for the exclusions list.
+
+### Complete command reference
+
+See `EXAMPLES.md` for exhaustive, copy/paste-ready examples covering every supported action and option.

@@ -3,12 +3,12 @@ DOCUMENT INFORMATION
 Document Name: SPECIFICATIONS.md
 Author: Bruno DELNOZ
 Email: bruno.delnoz@protonmail.com
-Version: v1.1.2
-Date / Time: 2026-09-23
-Project: bt_air_suite / bt_air_suite.sh
+Version: v2.0.0
+Date / Time: 2026-09-23 07:57
+Project: bt_air_suite
+Short description: Task-scoped functional specification.
 -->
-
-# SPECIFICATIONS — Initial unified Bluetooth Swiss Army Knife — v1.1.2
+# SPECIFICATIONS — Initial unified Bluetooth Swiss Army Knife — v2.0.0
 
 ## 1. Purpose
 
@@ -207,3 +207,108 @@ bash -n bt_air_suite.sh
 ./bt_air_suite.sh --simulate --capture-btmon --controller hci0 -d 30
 ./bt_air_suite.sh --simulate --secure
 ```
+
+
+## v2.0.0 task requirements
+
+### FR-31 — exclusionsbt rename
+
+The default exclusion file is `myinfo/exclusionsbt.txt`.
+
+`-X FILE` / `--exclusions-file FILE` continues to override the default.
+
+### FR-32 — OUI update action
+
+The CLI exposes:
+
+```text
+--update-oui
+```
+
+This control action does not require `--exec`.
+
+### FR-33 — OUI update validation
+
+A downloaded OUI database must not replace the current database unless it:
+
+- is non-empty;
+- is at least 100000 bytes;
+- contains at least 1000 recognizable IEEE `(base 16)` OUI records.
+
+### FR-34 — atomic replacement and backup
+
+A successful update must preserve the previous non-empty `oui.txt` as `oui.txt.bak`, then rename the validated same-directory temporary file over `oui.txt`.
+
+### FR-35 — inventory enrichment
+
+CSV and JSONL output includes:
+
+```text
+timestamp
+mac
+address_type
+oui_prefix
+vendor
+oui_status
+label
+name
+alias
+rssi
+tx_power
+icon
+paired
+trusted
+connected
+status
+uuids
+```
+
+### FR-36 — address type safety
+
+`address_type` can be:
+
+```text
+public
+random-static
+random-resolvable
+random-non-resolvable
+random-reserved
+unknown
+```
+
+Only `public` addresses receive asserted OUI vendor attribution.
+
+### FR-37 — Wi-Fi-style post-process
+
+With `--monitor --interval N --post-process`, each completed Bluetooth slice is post-processed before the next slice.
+
+### FR-38 — Wi-Fi-style Kate behavior
+
+With `--open-kate`, every newly generated filtered Markdown file is opened immediately using:
+
+```bash
+kate "$md_file" >/dev/null 2>&1 &
+```
+
+The monitor never waits for Kate to close.
+
+### FR-39 — remainder slices
+
+A finite monitor where duration is not exactly divisible by the interval must use the remaining seconds as the final slice.
+
+### FR-40 — post-process compatibility options
+
+The CLI supports:
+
+```text
+--post-process
+--no-post-process
+--open-kate
+--accept
+```
+
+`--accept` never bypasses sudo authentication.
+
+### FR-41 — exhaustive examples document
+
+The complete package includes `EXAMPLES.md`, documenting every action, control action, profile, transport, output option, target option, OUI workflow, hotplug workflow and representative option combination.

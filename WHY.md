@@ -3,12 +3,12 @@ DOCUMENT INFORMATION
 Document Name: WHY.md
 Author: Bruno DELNOZ
 Email: bruno.delnoz@protonmail.com
-Version: v1.1.2
-Date / Time: 2026-09-23
-Project: bt_air_suite / bt_air_suite.sh
+Version: v2.0.0
+Date / Time: 2026-09-23 07:57
+Project: bt_air_suite
+Short description: Project rationale, design choices and boundaries.
 -->
-
-# WHY — bt_air_suite.sh — v1.1.2
+# WHY — bt_air_suite.sh — v2.0.0
 
 ## Why one script
 
@@ -125,3 +125,18 @@ The raw discovery event is therefore the stronger per-slice source for RSSI.
 Before v1.1.2, the Red Team profile mainly changed defaults. v1.1.2 gives it a concrete active but non-destructive behavior: after discovery, Classic SDP enumeration is attempted on observed remote devices with strict timeout and target-count bounds.
 
 Connection, pairing and other state-changing tests remain separate explicit actions.
+
+
+## Why v2.0.0 aligns monitor behavior with Wi-Fi Air Suite
+
+The Wi-Fi suite already has a validated interval workflow: independent slices, post-processing after each completed slice, remainder support and asynchronous Kate opening. Bluetooth v2.0.0 deliberately reuses that operator model instead of introducing a different workflow.
+
+The Bluetooth implementation still uses BlueZ-specific timing internally, because non-interactive `bluetoothctl` discovery needs its own bounded timeout behavior.
+
+## Why OUI is local
+
+A local `myinfo/oui.txt` avoids one Internet lookup per device and makes post-processing reproducible offline. `--update-oui` is an explicit maintenance action.
+
+## Why random BLE addresses are not treated like public IEEE addresses
+
+A private/random BLE address can accidentally begin with bytes that resemble a registered OUI. v2.0.0 therefore records the address type and does not assert an OUI vendor unless BlueZ identifies the device address as public.

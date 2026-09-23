@@ -1,0 +1,11 @@
+# exclusionsbt_oui_resolved.txt
+# Generated for bt_air_suite.sh v2.0.0
+# Generated: 2026-09-23T07:57:00+02:00
+# Only exclusions with a reliable offline IEEE OUI lookup are listed.
+#
+MAC               | OUI      | VENDOR                                    
+------------------+----------+--------------------------------------------
+7C:64:56:AF:3D:23 | 7C6456   | Samsung Electronics Co.,Ltd               
+54:F1:5F:7F:C1:0B | 54F15F   | Sichuan AI-Link Technology Co., Ltd.      
+
+# resolved=2

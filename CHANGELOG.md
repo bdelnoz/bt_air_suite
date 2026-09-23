@@ -3,12 +3,58 @@ DOCUMENT INFORMATION
 Document Name: CHANGELOG.md
 Author: Bruno DELNOZ
 Email: bruno.delnoz@protonmail.com
-Version: v1.1.2
-Date / Time: 2026-09-23
-Project: bt_air_suite / bt_air_suite.sh
+Version: v2.0.0
+Date / Time: 2026-09-23 07:57
+Project: bt_air_suite
+Short description: Append-only project changelog.
 -->
-
 # CHANGELOG — bt_air_suite.sh
+
+## v2.0.0 — 2026-09-23 07:57 — Bruno DELNOZ
+
+### MAJOR
+
+- Bluetooth monitor interval/post-process/Kate workflow aligned with `wifi_air_suite.sh`.
+
+### ADDED
+
+- `--update-oui`.
+- Offline `myinfo/oui.txt`.
+- Atomic OUI update with `oui.txt.bak`.
+- `myinfo/exclusionsbt_enrichi.txt`.
+- `myinfo/exclusionsbt_oui_resolved.txt`.
+- Address type / OUI / vendor fields in CSV and JSONL.
+- `--accept`.
+- `--no-post-process`.
+- `EXAMPLES.md`.
+- `.results/enriched/`.
+
+### CHANGED
+
+- Default exclusion file renamed to `myinfo/exclusionsbt.txt`.
+- `--open-kate` now follows the Wi-Fi suite behavior exactly: each newly generated filtered Markdown is opened asynchronously after creation.
+- A finite monitor without `--interval` is one full-duration scan slice.
+- A monitor with `--interval` uses independent slices plus a remainder slice when required.
+- Post-processing runs after each completed interval before the next interval.
+
+### PRESERVED
+
+- v1.1.2 real BlueZ scan timing.
+- Local-controller exclusion.
+- Per-slice RSSI extraction.
+- Red Team bounded SDP enrichment.
+- `--nolog`.
+- Fingerprint, service enumeration, RSSI monitor, btmon capture.
+- Explicit connection/pairing tests.
+- Secure state and UB500 hotplug support.
+- Existing execution gates and control actions.
+
+### FIXED
+
+- Removed accidental shell `set -e` toggling from bounded Red Team and btmon execution paths.
+
+---
+
 
 ## v1.1.2 — 2026-09-23 — Bruno DELNOZ
 

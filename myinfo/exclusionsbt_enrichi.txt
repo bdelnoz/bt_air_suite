@@ -1,0 +1,16 @@
+# exclusionsbt_enrichi.txt
+# Generated for bt_air_suite.sh v2.0.0
+# Generated: 2026-09-23T07:57:00+02:00
+# Source exclusions: myinfo/exclusionsbt.txt
+# OUI source: myinfo/oui.txt
+#
+MAC               | OUI      | TYPE               | VENDOR / RESOLUTION                        | SOURCE LINE
+------------------+----------+--------------------+--------------------------------------------+------------------------------------------
+7C:64:56:AF:3D:23 | 7C6456   | IEEE OUI           | Samsung Electronics Co.,Ltd                | 7C:64:56:AF:3D:23 Samsung Soundbar M360 M-Series
+54:F1:5F:7F:C1:0B | 54F15F   | IEEE OUI           | Sichuan AI-Link Technology Co., Ltd.       | 54:F1:5F:7F:C1:0B Formuler Z8 Pro
+
+# Summary
+# entries=2
+# oui_resolved=2
+# local_or_randomized=0
+# oui_not_found=0

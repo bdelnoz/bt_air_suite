@@ -5,8 +5,8 @@
 # AUTHOR       : Bruno DELNOZ
 # EMAIL        : bruno.delnoz@protonmail.com
 # TARGET USAGE : Bluetooth / BLE defensive + authorized Red Team Swiss Army Knife
-# VERSION      : v1.1.2
-# DATE         : 2026-09-23
+# VERSION      : v2.0.0
+# DATE         : 2026-09-23 07:57
 # ==============================================================================
 #
 # DESIGN
@@ -23,8 +23,8 @@
 set -u
 IFS=$'\n\t'
 
-VERSION="v1.1.2"
-SCRIPT_DATE="2026-09-23"
+VERSION="v2.0.0"
+SCRIPT_DATE="2026-09-23 07:57"
 SCRIPT_AUTHOR="Bruno DELNOZ"
 SCRIPT_EMAIL="bruno.delnoz@protonmail.com"
 
@@ -33,13 +33,20 @@ PROJECT_ROOT="$BASE_DIR"
 
 MYINFO_DIR="$BASE_DIR/myinfo"
 KNOWN_FILE="$MYINFO_DIR/known_devices.txt"
-EXCLUSION_FILE="$MYINFO_DIR/exclusions.txt"
+EXCLUSION_FILE="$MYINFO_DIR/exclusionsbt.txt"
+EXCLUSION_ENRICHED_FILE="$MYINFO_DIR/exclusionsbt_enrichi.txt"
+EXCLUSION_OUI_RESOLVED_FILE="$MYINFO_DIR/exclusionsbt_oui_resolved.txt"
+OUI_FILE="$MYINFO_DIR/oui.txt"
+OUI_BACKUP_FILE="$MYINFO_DIR/oui.txt.bak"
+OUI_URL="https://standards-oui.ieee.org/oui/oui.txt"
+OUI_TMP_FILE=""
 
 RUNTIME_DIR="$BASE_DIR/.results"
 RAW_DIR="$RUNTIME_DIR/raw"
 CSV_DIR="$RUNTIME_DIR/csv"
 JSONL_DIR="$RUNTIME_DIR/jsonl"
 FILTERED_DIR="$RUNTIME_DIR/filtered"
+ENRICHED_DIR="$RUNTIME_DIR/enriched"
 GENERATED_DIR="$RUNTIME_DIR/generated"
 CAPTURE_DIR="$RUNTIME_DIR/captures"
 LOG_DIR="$RUNTIME_DIR/logs"
@@ -60,6 +67,7 @@ INFINITE=0
 INTERVAL_MINUTES=""
 POST_PROCESS=0
 OPEN_KATE=0
+ACCEPT_MODE=0
 NO_LOG=0
 ARCHIVE_OLD=0
 RSSI_POLL=2
@@ -113,46 +121,83 @@ show_help() {
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 DESCRIPTION:
-  Bluetooth / BLE Swiss Army Knife for Linux/Kali.
-  Defensive discovery + explicit authorized Red Team inspection/test actions.
+  Unified Bluetooth / BLE discovery, inventory, post-processing, OUI enrichment,
+  HCI capture and explicit authorized Red Team inspection tool for Linux/Kali.
 
 USAGE:
   ./bt_air_suite.sh --help
   ./bt_air_suite.sh --prerequis
-  ./bt_air_suite.sh --doctor
-  ./bt_air_suite.sh --simulate --<action> [OPTIONS]
-  ./bt_air_suite.sh --exec --<action> [OPTIONS]
+  ./bt_air_suite.sh --update-oui
+  ./bt_air_suite.sh --simulate --<business-action> [OPTIONS]
+  ./bt_air_suite.sh --exec --<business-action> [OPTIONS]
 
 CONTROL / INFORMATION:
   --help, -h
-  --version
-  --changelog, -ch
-  --prerequis, -pr
-  --install, -i
-  --doctor
-  --init
-  --show-paths
-  --print-config
-  --list-results
-  --stop, -st
-  --purge, -pu
+      Show this complete help.
 
-BUSINESS ACTIONS:
+  --version
+      Print the current version.
+
+  --changelog, -ch
+      Print the complete internal changelog.
+
+  --prerequis, -pr
+  --prereq
+  --check-prereq
+      Check required and optional prerequisites.
+      --prereq and --check-prereq are compatibility aliases.
+
+  --install, -i
+      Install supported prerequisite packages with APT.
+
+  --update-oui
+      Download the official IEEE OUI database over HTTPS, validate it, keep the
+      previous database as myinfo/oui.txt.bak, then atomically replace
+      myinfo/oui.txt. No --exec is required.
+
   --status
       Read controller / BlueZ / rfkill status. No --exec required.
 
+  --doctor
+      Show prerequisites, paths, controller state and USB Bluetooth candidates.
+
+  --init
+      Create the expected myinfo/ and .results/ layout.
+
+  --show-paths
+      Print resolved project, myinfo and runtime paths.
+
+  --print-config
+      Print the resolved invocation configuration.
+
+  --list-results
+      List current runtime result files.
+
+  --stop, -st
+      Stop the active invocation registered by this script.
+
+  --purge, -pu
+  --clean-runtime
+      Purge runtime artifacts under the selected .results root.
+      myinfo/ is preserved.
+      --clean-runtime is a compatibility alias.
+
+BUSINESS ACTIONS:
   --scan
-      One Bluetooth discovery slice.
+      Run one bounded discovery slice.
 
   --monitor
-      Rolling Bluetooth discovery slices until duration expires or CTRL-C.
+      Run Bluetooth discovery as a session.
+      With --interval MINUTES, each interval is an independent scan slice.
+      With --duration but no --interval, one scan slice uses the total duration.
+      With --interval but no finite duration, intervals repeat until CTRL-C.
 
   --fingerprint
       Collect detailed BlueZ information for --target MAC.
 
   --enum-services
       Enumerate UUID/service information for --target.
-      Uses bluetoothctl and sdptool when available.
+      Uses bluetoothctl and bounded Classic SDP when sdptool is available.
 
   --capture-btmon
       Record an HCI monitor trace with btmon in btsnoop format.
@@ -165,7 +210,6 @@ BUSINESS ACTIONS:
 
   --pair-test
       Explicit authorized pairing test against --target.
-      Pairing changes local/remote pairing state. Use only on owned/lab devices.
       --cleanup-pair removes the local pairing record after the test.
 
   --secure
@@ -175,125 +219,208 @@ BUSINESS ACTIONS:
   --power-off
 
   --hotplug-install
-      Install a TP-Link UB500-style udev/systemd secure-on-attach hook.
+      Install TP-Link UB500-style udev/systemd secure-on-attach support.
 
   --hotplug-remove
-      Remove the udev/systemd hook installed by this suite.
+      Remove hotplug files installed by this suite.
 
   --hotplug-test
-      Inspect USB presence and installed hotplug unit state.
+      Inspect USB presence and installed hotplug service/rule state.
 
 EXECUTION GATES:
   --exec, -exe
-      Authorize real operational execution.
+      Authorize real execution of exactly one operational action.
 
   --simulate, -s, --dry-run
-      Parse and print the planned operation without Bluetooth/system changes.
+      Dry-run an operational action without Bluetooth/system changes.
 
-COMMON OPTIONS:
+DISCOVERY / MONITOR OPTIONS:
   --controller VALUE
-      auto, hciN, or Bluetooth controller MAC. Default: auto
+      auto, hciN or Bluetooth controller MAC. Default: auto
 
   --transport auto|le|bredr
       Discovery transport. Default: auto
 
   -d, --duration SECONDS
-      Action/session duration in seconds.
-      Discovery uses bluetoothctl's non-interactive --timeout so the scan stays
-      active for the requested slice duration.
+      Total action/session duration in seconds.
 
   --infinite
-      Infinite monitor until CTRL-C.
+      Explicit infinite monitor until CTRL-C.
 
   --interval MINUTES
-      Rolling monitor slice interval in minutes.
+      Split --monitor into independent MINUTES-long discovery slices.
+      Post-processing runs after EACH completed slice before the next slice.
+      If the finite duration is not divisible by the interval, the final slice
+      uses the remaining seconds.
 
   --profile passive|standard|redteam
-      passive  : discovery/capture focus
-      standard : normal inspection
-      redteam  : faster active discovery and richer inspection defaults
+      passive  : passive-oriented discovery/capture workflow
+      standard : normal discovery and inspection
+      redteam  : discovery plus bounded Classic SDP enrichment
 
   --passive
-      Direct alias for --profile passive.
+      Alias for --profile passive.
 
   --active
-      Direct alias for --profile standard.
+      Alias for --profile standard.
 
   --redteam
-      Direct alias for --profile redteam.
-      After each discovery slice, observed remote devices receive bounded active
-      Classic SDP enumeration when sdptool is available. It does NOT auto-connect,
-      pair, trust or remove devices.
+      Alias for --profile redteam.
 
   --aggressive-scan
-      Compatibility alias for --redteam / --profile redteam.
+      Compatibility alias for --redteam.
 
   --target MAC
-      Explicit remote device target.
+      Explicit remote Bluetooth device target.
 
+POST-PROCESS / OUTPUT:
   --post-process
-      Create filtered CSV/Markdown generated artifacts.
+      After each completed scan slice:
+        1. filter exclusionsbt.txt;
+        2. write *.filtered.csv;
+        3. write *.filtered.md;
+        4. write *.enriched.csv;
+        5. refresh exclusionsbt_enrichi.txt / exclusionsbt_oui_resolved.txt;
+        6. copy generated artifacts under .results/generated/.
+
+  --no-post-process
+      Disable post-processing.
 
   --open-kate
-      Open generated filtered Markdown asynchronously.
-      Requires --post-process.
+      Same behavior as wifi_air_suite:
+      open EACH newly generated *.filtered.md immediately after creation using
+      Kate asynchronously; the next monitor interval does not wait for Kate.
+      Requires --post-process and is valid only with --scan or --monitor.
 
+  --accept
+      Compatibility option matching the Wi-Fi suite's non-interactive acceptance
+      semantics. It never bypasses sudo authentication.
+
+  --archive-old
+      Archive current runtime result files once before the acquisition session.
+
+  --nolog, --no-log
+      Disable persistent runtime *.log files.
+      Scan/result data is still generated.
+
+  --dest_dir DIR, --dest-dir DIR
+      Override the default .results runtime root.
+
+OUI / INVENTORY:
   -X, --exclusions-file FILE
-      Device MAC exclusions file.
+      MAC exclusion file.
+      Default: $EXCLUSION_FILE
 
   --known-file FILE
-      Known/trusted device list.
+      Known/trusted Bluetooth device list.
+      Default: $KNOWN_FILE
 
+  --update-oui
+      Refresh $OUI_FILE from:
+      $OUI_URL
+
+  Public Bluetooth addresses can be OUI-resolved.
+  BLE random/private addresses are classified and are not assigned a vendor as
+  if the first three octets were a trustworthy IEEE OUI.
+
+TARGET TEST OPTIONS:
   --rssi-poll SECONDS
       RSSI sampling interval. Default: $RSSI_POLL
 
-  --ub500-id VVVV:PPPP
-      USB ID used by hotplug support. Default: $UB500_ID
-
   --cleanup-pair
-      With --pair-test, remove local pairing after the test.
+      With --pair-test, remove the local pairing record after testing.
 
-  --archive-old
-      Archive current runtime result files before an acquisition action.
+HOTPLUG:
+  --ub500-id VVVV:PPPP
+      USB VID:PID used by hotplug support.
+      Default: $UB500_ID
 
-  --nolog, --no-log
-      Disable persistent *.log files. Result data is still generated.
+DEFAULT FILES:
+  $EXCLUSION_FILE
+  $EXCLUSION_ENRICHED_FILE
+  $EXCLUSION_OUI_RESOLVED_FILE
+  $KNOWN_FILE
+  $OUI_FILE
+  $OUI_BACKUP_FILE
 
-  --dest_dir DIR, --dest-dir DIR
-      Override .results runtime root.
+RUNTIME LAYOUT:
+  $RUNTIME_DIR/
+    raw/
+    csv/
+    jsonl/
+    filtered/
+    enriched/
+    generated/
+    captures/
+    logs/
+    tmp/
+    archive/
+
+RESERVED / NOT IMPLEMENTED:
+  --lab-destructive
+      Reserved name. Explicitly rejected by the parser in v2.0.0.
 
 RED TEAM BOUNDARY:
-  This release implements active discovery, fingerprinting, service enumeration,
-  connection tests, pairing tests, RSSI tracking and HCI capture.
-  RF jamming, forced disruption, destructive crash testing and aggressive fuzzing
-  are intentionally not implemented in the generic action set.
+  Red Team mode performs discovery plus bounded Classic SDP service enumeration
+  for observed remote devices. It never automatically connects, pairs, trusts or
+  removes devices. RF jamming, forced disruption, destructive crash testing and
+  aggressive fuzzing are not part of the generic action set.
 
 EXAMPLES:
   ./bt_air_suite.sh --status
   ./bt_air_suite.sh --doctor
+  ./bt_air_suite.sh --update-oui
 
   ./bt_air_suite.sh --simulate --scan --transport le -d 20 --post-process
-  ./bt_air_suite.sh --exec --scan --transport le -d 20 --post-process
+  ./bt_air_suite.sh --exec --scan --transport le -d 20 --post-process --open-kate
 
-  ./bt_air_suite.sh --exec --monitor --redteam --infinite --interval 1 --post-process --nolog
+  ./bt_air_suite.sh --exec --monitor --redteam --duration 300 --interval 1 --post-process --open-kate --nolog
+  ./bt_air_suite.sh --exec --monitor --duration 650 --interval 5 --post-process
+  ./bt_air_suite.sh --exec --monitor --infinite --interval 10 --post-process --nolog
 
-  ./bt_air_suite.sh --exec --fingerprint --target AA:BB:CC:DD:EE:FF --profile redteam
+  ./bt_air_suite.sh --exec --fingerprint --target AA:BB:CC:DD:EE:FF --redteam
   ./bt_air_suite.sh --exec --enum-services --target AA:BB:CC:DD:EE:FF
   ./bt_air_suite.sh --exec --rssi-monitor --target AA:BB:CC:DD:EE:FF -d 60
-
   ./bt_air_suite.sh --exec --capture-btmon --controller hci0 -d 60
-
   ./bt_air_suite.sh --exec --connect-test --target AA:BB:CC:DD:EE:FF
   ./bt_air_suite.sh --exec --pair-test --target AA:BB:CC:DD:EE:FF --cleanup-pair
-
   ./bt_air_suite.sh --exec --secure
   ./bt_air_suite.sh --exec --hotplug-install --ub500-id 2357:0604
+
+  See EXAMPLES.md for the exhaustive command reference.
 
 EOF
 }
 
 show_changelog() {
     cat <<'EOF'
+v2.0.0 — 2026-09-23 07:57
+- MAJOR: monitor interval/post-process/Kate workflow aligned with wifi_air_suite.
+- CHANGED: --duration remains seconds; --interval remains minutes; each completed
+  monitor interval is post-processed before the next interval begins.
+- CHANGED: --open-kate now follows the Wi-Fi behavior exactly: every newly
+  generated *.filtered.md is opened immediately with `kate FILE >/dev/null 2>&1 &`;
+  the editor never blocks the next scan interval.
+- CHANGED: --open-kate is valid only with --scan/--monitor and requires
+  --post-process. Kate is checked before acquisition starts.
+- CHANGED: canonical Bluetooth exclusions file is now myinfo/exclusionsbt.txt.
+- ADDED: bundled offline myinfo/oui.txt database and OUI/vendor enrichment.
+- ADDED: --update-oui downloads the official IEEE OUI database over HTTPS,
+  validates it, preserves the previous database as oui.txt.bak, and atomically
+  replaces myinfo/oui.txt only after successful validation.
+- ADDED: myinfo/exclusionsbt_enrichi.txt and
+  myinfo/exclusionsbt_oui_resolved.txt generation.
+- ADDED: address_type, oui_prefix, vendor and oui_status fields to CSV/JSONL.
+- ADDED: Bluetooth public/random address classification; OUI vendor attribution
+  is not asserted for private/random BLE addresses.
+- ADDED: --accept compatibility option and --no-post-process.
+- ADDED: EXAMPLES.md with exhaustive command examples for every supported action
+  and option combination.
+- PRESERVED: v1.1.2 real scan timing, per-slice RSSI, local-controller exclusion,
+  Red Team bounded SDP enrichment, --nolog, btmon, fingerprint, services,
+  connection/pairing tests, secure state and UB500 hotplug support.
+- FIXED: removed accidental `set -e` toggling from bounded Red Team/btmon calls.
+
 v1.1.2 — 2026-09-23
 - FIXED: the local Bluetooth controller MAC is no longer counted as a discovered
   remote device. Slice membership is extracted only from BlueZ `Device <MAC>`
@@ -358,6 +485,7 @@ set_runtime_root() {
     CSV_DIR="$RUNTIME_DIR/csv"
     JSONL_DIR="$RUNTIME_DIR/jsonl"
     FILTERED_DIR="$RUNTIME_DIR/filtered"
+    ENRICHED_DIR="$RUNTIME_DIR/enriched"
     GENERATED_DIR="$RUNTIME_DIR/generated"
     CAPTURE_DIR="$RUNTIME_DIR/captures"
     LOG_DIR="$RUNTIME_DIR/logs"
@@ -378,6 +506,7 @@ parse_args() {
             --simulate|-s|--dry-run) SIMULATE_MODE=1; shift ;;
 
             --status) set_action "status"; shift ;;
+            --update-oui) set_action "update-oui"; shift ;;
             --scan) set_action "scan"; shift ;;
             --monitor) set_action "monitor"; shift ;;
             --fingerprint) set_action "fingerprint"; shift ;;
@@ -460,7 +589,9 @@ parse_args() {
                 shift 2
                 ;;
             --post-process) POST_PROCESS=1; shift ;;
+            --no-post-process) POST_PROCESS=0; shift ;;
             --open-kate) OPEN_KATE=1; shift ;;
+            --accept) ACCEPT_MODE=1; shift ;;
             --archive-old) ARCHIVE_OLD=1; shift ;;
             --nolog|--no-log) NO_LOG=1; shift ;;
             --cleanup-pair) CLEANUP_PAIR=1; shift ;;
@@ -528,8 +659,12 @@ parse_args() {
         die "--interval est réservé à --monitor."
     fi
 
-    if (( OPEN_KATE == 1 && POST_PROCESS == 0 )); then
-        die "--open-kate exige --post-process."
+    if (( OPEN_KATE == 1 )); then
+        case "$ACTION" in
+            scan|monitor) ;;
+            *) die "--open-kate est disponible uniquement avec --scan ou --monitor." ;;
+        esac
+        (( POST_PROCESS == 1 )) || die "--open-kate exige --post-process."
     fi
 
     case "$ACTION" in
@@ -541,9 +676,12 @@ parse_args() {
 
 ensure_dirs() {
     mkdir -p "$MYINFO_DIR" "$RAW_DIR" "$CSV_DIR" "$JSONL_DIR" "$FILTERED_DIR" \
-             "$GENERATED_DIR" "$CAPTURE_DIR" "$LOG_DIR" "$TMP_DIR" "$ARCHIVE_DIR"
+             "$ENRICHED_DIR" "$GENERATED_DIR" "$CAPTURE_DIR" "$LOG_DIR" "$TMP_DIR" "$ARCHIVE_DIR"
     [[ -f "$KNOWN_FILE" ]] || : > "$KNOWN_FILE"
     [[ -f "$EXCLUSION_FILE" ]] || : > "$EXCLUSION_FILE"
+    [[ -f "$EXCLUSION_ENRICHED_FILE" ]] || : > "$EXCLUSION_ENRICHED_FILE"
+    [[ -f "$EXCLUSION_OUI_RESOLVED_FILE" ]] || : > "$EXCLUSION_OUI_RESOLVED_FILE"
+    [[ -f "$OUI_FILE" ]] || : > "$OUI_FILE"
 }
 
 generate_prefix() {
@@ -590,7 +728,7 @@ setup_logs() {
 archive_old() {
     local d f
     mkdir -p "$ARCHIVE_DIR"
-    for d in "$RAW_DIR" "$CSV_DIR" "$JSONL_DIR" "$FILTERED_DIR" "$GENERATED_DIR" "$CAPTURE_DIR"; do
+    for d in "$RAW_DIR" "$CSV_DIR" "$JSONL_DIR" "$FILTERED_DIR" "$ENRICHED_DIR" "$GENERATED_DIR" "$CAPTURE_DIR"; do
         [[ -d "$d" ]] || continue
         while IFS= read -r -d '' f; do
             mv -f -- "$f" "$ARCHIVE_DIR/$(basename "$f").done" 2>/dev/null || true
@@ -653,6 +791,9 @@ unregister_pid() {
 cleanup() {
     sudo_keepalive_stop || true
     unregister_pid || true
+    if [[ -n "${OUI_TMP_FILE:-}" && -f "$OUI_TMP_FILE" ]]; then
+        rm -f -- "$OUI_TMP_FILE" 2>/dev/null || true
+    fi
 }
 trap cleanup EXIT INT TERM HUP
 
@@ -729,18 +870,39 @@ run_prerequis() {
     else
         printf '[WARN] %-14s optional (Classic SDP enumeration reduced)\n' "sdptool"
     fi
+
+    if has_cmd curl; then
+        printf '[OK] %-16s %s\n' "curl" "$(command -v curl)"
+    elif has_cmd wget; then
+        printf '[OK] %-16s %s\n' "wget" "$(command -v wget)"
+    else
+        printf '[WARN] %-14s %s\n' "curl/wget" "missing (--update-oui unavailable)"
+    fi
+
+    if has_cmd kate; then
+        printf '[OK] %-16s %s\n' "kate" "$(command -v kate)"
+    else
+        printf '[WARN] %-14s %s\n' "kate" "optional (--open-kate unavailable)"
+    fi
+
+    if validate_oui_file "$OUI_FILE"; then
+        printf '[OK] %-16s %s\n' "oui.txt" "$OUI_FILE"
+    else
+        printf '[WARN] %-14s %s\n' "oui.txt" "missing/invalid; run ./bt_air_suite.sh --update-oui"
+    fi
+
     return "$rc"
 }
 
 run_install() {
     if (( SIMULATE_MODE == 1 )); then
         say "SIMULATION: apt-get update"
-        say "SIMULATION: apt-get install -y bluez rfkill usbutils"
+        say "SIMULATION: apt-get install -y bluez rfkill usbutils curl"
         return 0
     fi
     sudo_ready
     run_privileged apt-get update
-    run_privileged apt-get install -y bluez rfkill usbutils
+    run_privileged apt-get install -y bluez rfkill usbutils curl
 }
 
 show_paths() {
@@ -749,11 +911,17 @@ BASE_DIR=$BASE_DIR
 MYINFO_DIR=$MYINFO_DIR
 KNOWN_FILE=$KNOWN_FILE
 EXCLUSION_FILE=$EXCLUSION_FILE
+EXCLUSION_ENRICHED_FILE=$EXCLUSION_ENRICHED_FILE
+EXCLUSION_OUI_RESOLVED_FILE=$EXCLUSION_OUI_RESOLVED_FILE
+OUI_FILE=$OUI_FILE
+OUI_BACKUP_FILE=$OUI_BACKUP_FILE
+OUI_URL=$OUI_URL
 RUNTIME_DIR=$RUNTIME_DIR
 RAW_DIR=$RAW_DIR
 CSV_DIR=$CSV_DIR
 JSONL_DIR=$JSONL_DIR
 FILTERED_DIR=$FILTERED_DIR
+ENRICHED_DIR=$ENRICHED_DIR
 GENERATED_DIR=$GENERATED_DIR
 CAPTURE_DIR=$CAPTURE_DIR
 LOG_DIR=$LOG_DIR
@@ -779,10 +947,17 @@ INFINITE=$INFINITE
 INTERVAL_MINUTES=$INTERVAL_MINUTES
 POST_PROCESS=$POST_PROCESS
 OPEN_KATE=$OPEN_KATE
+ACCEPT_MODE=$ACCEPT_MODE
 NO_LOG=$NO_LOG
 RSSI_POLL=$RSSI_POLL
 UB500_ID=$UB500_ID
 CLEANUP_PAIR=$CLEANUP_PAIR
+EXCLUSION_FILE=$EXCLUSION_FILE
+EXCLUSION_ENRICHED_FILE=$EXCLUSION_ENRICHED_FILE
+EXCLUSION_OUI_RESOLVED_FILE=$EXCLUSION_OUI_RESOLVED_FILE
+KNOWN_FILE=$KNOWN_FILE
+OUI_FILE=$OUI_FILE
+RUNTIME_DIR=$RUNTIME_DIR
 EOF
 }
 
@@ -803,7 +978,12 @@ doctor() {
 
 init_layout() {
     ensure_dirs
+    refresh_exclusion_enrichment || true
     ok "Layout initialized."
+    if ! validate_oui_file "$OUI_FILE"; then
+        warn "OUI database missing/invalid: $OUI_FILE"
+        warn "Run exactly: ./bt_air_suite.sh --update-oui"
+    fi
     show_paths
 }
 
@@ -850,7 +1030,10 @@ simulation_stop() {
             [[ "$PROFILE" == "redteam" ]] && say "Would then run bounded active Classic SDP enrichment on observed remote devices."
             ;;
         monitor)
-            say "Would run rolling discovery slices and per-slice remote-device inventory."
+            say "Would run Wi-Fi-style monitor session semantics."
+            say "Duration: ${DURATION:-INFINITE}; interval minutes: ${INTERVAL_MINUTES:-DISABLED}."
+            say "Would post-process after each completed interval: $POST_PROCESS."
+            say "Would open each new filtered Markdown asynchronously in Kate: $OPEN_KATE."
             [[ "$PROFILE" == "redteam" ]] && say "Would run bounded active Classic SDP enrichment after each slice."
             ;;
         fingerprint) say "Would inspect target $TARGET with bluetoothctl info." ;;
@@ -1073,16 +1256,221 @@ device_field() {
     printf '%s\n' "$info_text" | awk -F': ' -v k="$key" '$1 ~ "^[[:space:]]*" k "$" {sub(/^[^:]*: /,""); print; exit}'
 }
 
+normalize_oui_prefix() {
+    local mac="$1"
+    printf '%s\n' "${mac:0:8}" | tr 'a-f' 'A-F'
+}
+
+resolve_oui_vendor() {
+    local mac="$1"
+    local key
+
+    [[ -s "$OUI_FILE" ]] || return 1
+    key="$(printf '%s' "${mac:0:8}" | tr -d ':' | tr 'a-f' 'A-F')"
+
+    awk -v key="$key" '
+        BEGIN { IGNORECASE=1 }
+        toupper($1) == key && $2 == "(base" && $3 == "16)" {
+            $1=""; $2=""; $3=""
+            sub(/^[[:space:]]+/, "")
+            gsub(/\r/, "")
+            print
+            exit
+        }
+    ' "$OUI_FILE"
+}
+
+classify_random_address() {
+    local mac="$1"
+    local first_hex="${mac%%:*}"
+    local first_dec=$((16#$first_hex))
+    local top=$(( first_dec & 0xC0 ))
+
+    case "$top" in
+        192) printf 'random-static\n' ;;
+        64)  printf 'random-resolvable\n' ;;
+        0)   printf 'random-non-resolvable\n' ;;
+        128) printf 'random-reserved\n' ;;
+        *)   printf 'random\n' ;;
+    esac
+}
+
+classify_address_type() {
+    local mac="$1"
+    local bluez_type="${2:-}"
+    bluez_type="$(printf '%s' "$bluez_type" | tr '[:upper:]' '[:lower:]')"
+
+    case "$bluez_type" in
+        public) printf 'public\n' ;;
+        random) classify_random_address "$mac" ;;
+        *)      printf 'unknown\n' ;;
+    esac
+}
+
+is_locally_administered_mac() {
+    local mac="$1"
+    local first_hex="${mac%%:*}"
+    local first_dec=$((16#$first_hex))
+    (( first_dec & 0x02 ))
+}
+
+validate_oui_file() {
+    local file="$1"
+    local bytes entries
+
+    [[ -s "$file" ]] || return 1
+    bytes="$(wc -c < "$file" 2>/dev/null | tr -d '[:space:]')"
+    entries="$(grep -Eic '^[0-9A-F]{6}[[:space:]]+\(base[[:space:]]+16\)' "$file" 2>/dev/null || true)"
+    bytes="${bytes:-0}"
+    entries="${entries:-0}"
+
+    (( bytes >= 100000 && entries >= 1000 ))
+}
+
+refresh_exclusion_enrichment() {
+    local line mac prefix vendor type status total=0 resolved=0 local_random=0 unknown=0
+
+    ensure_dirs
+
+    {
+        echo "# exclusionsbt_enrichi.txt"
+        echo "# Generated by bt_air_suite.sh $VERSION"
+        echo "# Generated: $(date --iso-8601=seconds 2>/dev/null || date)"
+        echo "# Source exclusions: $EXCLUSION_FILE"
+        echo "# OUI source: $OUI_FILE"
+        echo "#"
+        printf '%-17s | %-8s | %-18s | %-42s | %s\n' "MAC" "OUI" "TYPE" "VENDOR / RESOLUTION" "SOURCE LINE"
+        printf '%s\n' "------------------+----------+--------------------+--------------------------------------------+------------------------------------------"
+    } > "$EXCLUSION_ENRICHED_FILE"
+
+    {
+        echo "# exclusionsbt_oui_resolved.txt"
+        echo "# Generated by bt_air_suite.sh $VERSION"
+        echo "# Generated: $(date --iso-8601=seconds 2>/dev/null || date)"
+        echo "# Only exclusions with a reliable offline IEEE OUI lookup are listed."
+        echo "#"
+        printf '%-17s | %-8s | %-42s\n' "MAC" "OUI" "VENDOR"
+        printf '%s\n' "------------------+----------+--------------------------------------------"
+    } > "$EXCLUSION_OUI_RESOLVED_FILE"
+
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        [[ "$line" =~ ^[[:space:]]*# ]] && continue
+        mac="$(printf '%s\n' "$line" | grep -Eo '([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}' | head -n1 | tr 'a-f' 'A-F')"
+        valid_mac "${mac:-}" || continue
+
+        ((total++))
+        prefix="$(printf '%s' "$mac" | tr -d ':' | cut -c1-6)"
+
+        if is_locally_administered_mac "$mac"; then
+            type="LOCAL/RANDOMIZED"
+            vendor="No reliable IEEE OUI attribution"
+            status="RANDOM_ADDRESS"
+            ((local_random++))
+        else
+            vendor="$(resolve_oui_vendor "$mac" || true)"
+            if [[ -n "$vendor" ]]; then
+                type="IEEE OUI"
+                status="OUI_RESOLVED"
+                ((resolved++))
+            else
+                type="IEEE OUI"
+                vendor="Unknown"
+                status="OUI_NOT_FOUND"
+                ((unknown++))
+            fi
+        fi
+
+        printf '%-17s | %-8s | %-18s | %-42s | %s\n' \
+            "$mac" "$prefix" "$type" "$vendor" "$line" >> "$EXCLUSION_ENRICHED_FILE"
+
+        if [[ "$status" == "OUI_RESOLVED" ]]; then
+            printf '%-17s | %-8s | %-42s\n' \
+                "$mac" "$prefix" "$vendor" >> "$EXCLUSION_OUI_RESOLVED_FILE"
+        fi
+    done < "$EXCLUSION_FILE"
+
+    {
+        echo
+        echo "# Summary"
+        echo "# entries=$total"
+        echo "# oui_resolved=$resolved"
+        echo "# local_or_randomized=$local_random"
+        echo "# oui_not_found=$unknown"
+    } >> "$EXCLUSION_ENRICHED_FILE"
+
+    {
+        echo
+        echo "# resolved=$resolved"
+    } >> "$EXCLUSION_OUI_RESOLVED_FILE"
+}
+
+run_update_oui() {
+    local bytes entries old_present=0
+
+    ensure_dirs
+
+    if (( SIMULATE_MODE == 1 )); then
+        say "SIMULATION — OUI database will not be modified."
+        say "Would download: $OUI_URL"
+        say "Would validate temporary file."
+        say "Would preserve current database as: $OUI_BACKUP_FILE"
+        say "Would atomically replace: $OUI_FILE"
+        return 0
+    fi
+
+    OUI_TMP_FILE="$MYINFO_DIR/.oui.txt.tmp.$$"
+    rm -f -- "$OUI_TMP_FILE" 2>/dev/null || true
+
+    info "OUI download         : $OUI_URL"
+    if has_cmd curl; then
+        curl -fL --connect-timeout 15 --max-time 180 --retry 2 \
+            --retry-delay 2 -o "$OUI_TMP_FILE" "$OUI_URL" \
+            || { rm -f -- "$OUI_TMP_FILE"; OUI_TMP_FILE=""; die "Téléchargement OUI échoué. Base actuelle conservée."; }
+    elif has_cmd wget; then
+        wget --https-only --timeout=20 --tries=3 -O "$OUI_TMP_FILE" "$OUI_URL" \
+            || { rm -f -- "$OUI_TMP_FILE"; OUI_TMP_FILE=""; die "Téléchargement OUI échoué. Base actuelle conservée."; }
+    else
+        die "curl ou wget est requis pour --update-oui. Lance : ./bt_air_suite.sh --install"
+    fi
+
+    if ! validate_oui_file "$OUI_TMP_FILE"; then
+        rm -f -- "$OUI_TMP_FILE"
+        OUI_TMP_FILE=""
+        die "Validation OUI échouée. myinfo/oui.txt n'a pas été modifié."
+    fi
+
+    if [[ -s "$OUI_FILE" ]]; then
+        cp -f -- "$OUI_FILE" "$OUI_BACKUP_FILE" \
+            || { rm -f -- "$OUI_TMP_FILE"; OUI_TMP_FILE=""; die "Impossible de créer $OUI_BACKUP_FILE"; }
+        old_present=1
+    fi
+
+    mv -f -- "$OUI_TMP_FILE" "$OUI_FILE" \
+        || die "Remplacement atomique de $OUI_FILE impossible."
+    OUI_TMP_FILE=""
+
+    bytes="$(wc -c < "$OUI_FILE" | tr -d '[:space:]')"
+    entries="$(grep -Eic '^[0-9A-F]{6}[[:space:]]+\(base[[:space:]]+16\)' "$OUI_FILE" || true)"
+
+    refresh_exclusion_enrichment
+
+    ok "OUI database updated: $OUI_FILE"
+    (( old_present == 1 )) && ok "Previous OUI backup : $OUI_BACKUP_FILE"
+    ok "OUI bytes           : $bytes"
+    ok "OUI base16 entries  : $entries"
+}
+
 write_inventory() {
     local raw="$1"
     local seen_file="$2"
     local csv="$3"
     local jsonl="$4"
     local mac info_text name alias rssi txpower icon paired trusted connected status uuids ts label count=0
+    local bluez_address_type address_type oui_prefix vendor oui_status
 
     ts="$(date --iso-8601=seconds 2>/dev/null || date)"
 
-    printf '%s\n' 'timestamp,mac,label,name,alias,rssi,tx_power,icon,paired,trusted,connected,status,uuids' > "$csv"
+    printf '%s\n' 'timestamp,mac,address_type,oui_prefix,vendor,oui_status,label,name,alias,rssi,tx_power,icon,paired,trusted,connected,status,uuids' > "$csv"
     : > "$jsonl"
 
     {
@@ -1096,17 +1484,15 @@ write_inventory() {
         mac="$(normalize_mac "$mac")"
         ((count++))
 
-        # Enrich only addresses proven to have occurred in this slice.
-        # If the BlueZ object disappears before enrichment, retain the observed
-        # MAC with empty properties instead of inventing data.
         info_text="$(bluetoothctl info "$mac" 2>/dev/null || true)"
         printf '\n===== INFO %s =====\n%s\n' "$mac" "$info_text" >> "$raw"
 
         name="$(device_field "$info_text" "Name")"
         alias="$(device_field "$info_text" "Alias")"
+        bluez_address_type="$(device_field "$info_text" "AddressType")"
+        address_type="$(classify_address_type "$mac" "$bluez_address_type")"
+        oui_prefix="$(normalize_oui_prefix "$mac")"
 
-        # RSSI is dynamic and can disappear from `bluetoothctl info` immediately
-        # after discovery. Prefer the last RSSI event from this exact scan slice.
         rssi="$(last_rssi_from_raw "$raw" "$mac")"
         [[ -n "$rssi" ]] || rssi="$(device_field "$info_text" "RSSI")"
 
@@ -1119,9 +1505,31 @@ write_inventory() {
         label="${name:-${alias:-}}"
         status="$(known_status "$mac")"
 
+        vendor=""
+        case "$address_type" in
+            public)
+                vendor="$(resolve_oui_vendor "$mac" || true)"
+                if [[ -n "$vendor" ]]; then
+                    oui_status="OUI_RESOLVED"
+                else
+                    oui_status="OUI_NOT_FOUND"
+                fi
+                ;;
+            random-*)
+                oui_status="RANDOM_ADDRESS"
+                ;;
+            *)
+                oui_status="NOT_APPLICABLE"
+                ;;
+        esac
+
         {
             csv_escape "$ts"; printf ','
             csv_escape "$mac"; printf ','
+            csv_escape "$address_type"; printf ','
+            csv_escape "$oui_prefix"; printf ','
+            csv_escape "$vendor"; printf ','
+            csv_escape "$oui_status"; printf ','
             csv_escape "$label"; printf ','
             csv_escape "$name"; printf ','
             csv_escape "$alias"; printf ','
@@ -1135,12 +1543,13 @@ write_inventory() {
             csv_escape "$uuids"; printf '\n'
         } >> "$csv"
 
-        printf '{"timestamp":"%s","mac":"%s","label":"%s","name":"%s","alias":"%s","rssi":"%s","tx_power":"%s","icon":"%s","paired":"%s","trusted":"%s","connected":"%s","status":"%s","uuids":"%s"}\n' \
-            "$(json_escape "$ts")" "$(json_escape "$mac")" "$(json_escape "$label")" \
-            "$(json_escape "$name")" "$(json_escape "$alias")" "$(json_escape "$rssi")" \
-            "$(json_escape "$txpower")" "$(json_escape "$icon")" "$(json_escape "$paired")" \
-            "$(json_escape "$trusted")" "$(json_escape "$connected")" "$(json_escape "$status")" \
-            "$(json_escape "$uuids")" >> "$jsonl"
+        printf '{"timestamp":"%s","mac":"%s","address_type":"%s","oui_prefix":"%s","vendor":"%s","oui_status":"%s","label":"%s","name":"%s","alias":"%s","rssi":"%s","tx_power":"%s","icon":"%s","paired":"%s","trusted":"%s","connected":"%s","status":"%s","uuids":"%s"}\n' \
+            "$(json_escape "$ts")" "$(json_escape "$mac")" "$(json_escape "$address_type")" \
+            "$(json_escape "$oui_prefix")" "$(json_escape "$vendor")" "$(json_escape "$oui_status")" \
+            "$(json_escape "$label")" "$(json_escape "$name")" "$(json_escape "$alias")" \
+            "$(json_escape "$rssi")" "$(json_escape "$txpower")" "$(json_escape "$icon")" \
+            "$(json_escape "$paired")" "$(json_escape "$trusted")" "$(json_escape "$connected")" \
+            "$(json_escape "$status")" "$(json_escape "$uuids")" >> "$jsonl"
 
     done < "$seen_file"
 
@@ -1253,11 +1662,9 @@ run_redteam_enrichment() {
             echo "===== bounded Classic SDP browse (${probe_timeout}s max) ====="
         } >> "$out"
 
-        set +e
         timeout --foreground --signal=INT --kill-after=2s "${probe_timeout}s" \
             sdptool browse "$mac" >> "$out" 2>&1
         rc=$?
-        set -e 2>/dev/null || true
 
         case "$rc" in
             0)
@@ -1284,30 +1691,59 @@ run_redteam_enrichment() {
     ok "REDTEAM report: $out"
 }
 
+open_markdown_in_kate() {
+    local md_file="$1"
+
+    (( OPEN_KATE == 1 )) || return 0
+
+    if ! command -v kate >/dev/null 2>&1; then
+        warn "--open-kate demandé mais Kate est introuvable dans PATH."
+        return 1
+    fi
+
+    info "Ouverture Kate      : $md_file"
+    kate "$md_file" >/dev/null 2>&1 &
+    return 0
+}
+
 post_process_inventory() {
     local csv="$1"
-    local base filtered md
+    local base filtered filtered_md enriched jsonl
+
+    [[ -s "$csv" ]] || {
+        warn "CSV vide/introuvable pour post-process : $csv"
+        return 1
+    }
+
     base="$(basename "${csv%.csv}")"
     filtered="$FILTERED_DIR/${base}.filtered.csv"
-    md="$FILTERED_DIR/${base}.filtered.md"
+    filtered_md="$FILTERED_DIR/${base}.filtered.md"
+    enriched="$ENRICHED_DIR/${base}.enriched.csv"
+    jsonl="$JSONL_DIR/${base}.jsonl"
 
     filter_inventory "$csv" "$filtered"
-    csv_to_markdown "$filtered" "$md"
+    csv_to_markdown "$filtered" "$filtered_md"
+
+    # The primary inventory CSV is already OUI-enriched in v2.0.0.
+    # Keep the dedicated enriched artifact to mirror the Wi-Fi suite layout.
+    cp -f "$filtered" "$enriched"
+
+    refresh_exclusion_enrichment || true
 
     cp -f "$csv" "$GENERATED_DIR/" 2>/dev/null || true
     cp -f "$filtered" "$GENERATED_DIR/" 2>/dev/null || true
-    cp -f "$md" "$GENERATED_DIR/" 2>/dev/null || true
+    cp -f "$filtered_md" "$GENERATED_DIR/" 2>/dev/null || true
+    cp -f "$enriched" "$GENERATED_DIR/" 2>/dev/null || true
+    [[ -f "$jsonl" ]] && cp -f "$jsonl" "$GENERATED_DIR/" 2>/dev/null || true
+    [[ "$GLOBAL_LOG_FILE" != "/dev/null" && -f "$GLOBAL_LOG_FILE" ]] \
+        && cp -f "$GLOBAL_LOG_FILE" "$GENERATED_DIR/" 2>/dev/null || true
 
-    ok "Filtered CSV: $filtered"
-    ok "Filtered MD : $md"
+    info "CSV filtré         : $filtered"
+    info "MD filtré          : $filtered_md"
+    info "CSV enrichi        : $enriched"
+    info "Generated          : $GENERATED_DIR"
 
-    if (( OPEN_KATE == 1 )); then
-        if has_cmd kate; then
-            kate "$md" >/dev/null 2>&1 &
-        else
-            warn "Kate introuvable."
-        fi
-    fi
+    [[ -f "$filtered_md" ]] && open_markdown_in_kate "$filtered_md" || true
 }
 
 run_scan_slice() {
@@ -1349,7 +1785,12 @@ run_scan_slice() {
     ok "JSONL : $jsonl"
 
     if (( POST_PROCESS == 1 )); then
-        post_process_inventory "$csv"
+        info "Post-process tranche : démarrage"
+        if post_process_inventory "$csv"; then
+            ok "Post-process tranche terminé."
+        else
+            warn "Post-process tranche en erreur ; la tranche suivante continuera."
+        fi
     fi
 }
 
@@ -1357,6 +1798,10 @@ prepare_acquisition() {
     ensure_dirs
     need_cmd bluetoothctl
     need_cmd timeout
+    if (( OPEN_KATE == 1 )); then
+        need_cmd kate
+    fi
+    refresh_exclusion_enrichment || true
     [[ "$ARCHIVE_OLD" == "1" ]] && archive_old
     register_pid
 }
@@ -1368,38 +1813,73 @@ run_scan() {
 }
 
 run_monitor() {
-    local interval_seconds total remaining slice_duration index=1
+    local interval_seconds=0
+    local remaining=0
+    local slice_duration=""
+    local slice_index=1
+    local slice_total=1
 
     simulation_stop
     prepare_acquisition
 
+    info "MONITOR $VERSION"
+    info "Durée totale       : ${DURATION:-INFINITE}"
+    info "Intervalle         : ${INTERVAL_MINUTES:-DISABLED}${INTERVAL_MINUTES:+ minute(s)}"
+    info "Post-process       : $POST_PROCESS"
+    info "Open Kate          : $OPEN_KATE"
+    info "Accept             : $ACCEPT_MODE"
+    info "Logs persistants   : $(( NO_LOG == 0 ? 1 : 0 ))"
+    info "Profile            : $PROFILE"
+    info "Transport          : $TRANSPORT"
+
     if [[ -n "$INTERVAL_MINUTES" ]]; then
         interval_seconds=$(( INTERVAL_MINUTES * 60 ))
-    elif [[ "$PROFILE" == "redteam" ]]; then
-        interval_seconds=30
-    else
+        if [[ -n "$DURATION" && "$INFINITE" != "1" ]]; then
+            slice_total=$(( (DURATION + interval_seconds - 1) / interval_seconds ))
+            info "Nombre de tranches : $slice_total"
+        else
+            slice_total=0
+            info "Nombre de tranches : illimité (CTRL-C pour arrêter)"
+        fi
+    fi
+
+    # Same session semantics as wifi_air_suite:
+    # finite duration without --interval => one full-duration slice.
+    if [[ -z "$INTERVAL_MINUTES" && -n "$DURATION" && "$INFINITE" != "1" ]]; then
+        run_scan_slice "$DURATION" 1 \
+            || die "Scan invalide ou interrompu avant la durée demandée."
+        return 0
+    fi
+
+    # No --interval and no finite duration: BlueZ non-interactive discovery is
+    # implemented as repeated 60-second slices until CTRL-C.
+    if [[ -z "$INTERVAL_MINUTES" ]]; then
         interval_seconds=60
+        slice_total=0
+        info "Tranches BlueZ     : 60s en boucle continue"
     fi
 
     if (( INFINITE == 1 )) || [[ -z "$DURATION" ]]; then
-        info "MONITOR infinite. Slice=${interval_seconds}s"
         while :; do
-            run_scan_slice "$interval_seconds" "$index"                 || die "Tranche $index invalide ; monitor arrêté."
-            ((index++))
+            run_scan_slice "$interval_seconds" "$slice_index" \
+                || die "Tranche $slice_index invalide ; monitor arrêté."
+            ((slice_index++))
         done
     fi
 
-    total="$DURATION"
-    remaining="$total"
+    remaining="$DURATION"
     while (( remaining > 0 )); do
         if (( remaining < interval_seconds )); then
             slice_duration="$remaining"
         else
             slice_duration="$interval_seconds"
         fi
-        run_scan_slice "$slice_duration" "$index"             || die "Tranche $index invalide ; monitor arrêté."
+
+        run_scan_slice "$slice_duration" "$slice_index" \
+            || die "Tranche $slice_index invalide ; monitor arrêté."
+
         remaining=$(( remaining - slice_duration ))
-        ((index++))
+        ((slice_index++))
     done
 }
 
@@ -1461,11 +1941,9 @@ run_btmon_capture() {
     local out="$CAPTURE_DIR/${PREFIX}.${HCI_IFACE}.btsnoop"
 
     info "btmon capture: HCI=$HCI_IFACE duration=${duration}s"
-    set +e
     run_privileged timeout --foreground --signal=INT --kill-after=2s "${duration}s" \
         btmon -i "$HCI_IFACE" -w "$out"
     local rc=$?
-    set -e 2>/dev/null || true
 
     case "$rc" in 0|124|130|137) ;; *) warn "btmon returned $rc" ;; esac
     [[ -f "$out" ]] && ok "BTSnoop: $out" || warn "No btsnoop file produced."
@@ -1639,6 +2117,7 @@ main() {
 
     case "$ACTION" in
         status) run_status ;;
+        update-oui) run_update_oui ;;
         prerequis) run_prerequis ;;
         install) run_install ;;
         doctor) doctor ;;

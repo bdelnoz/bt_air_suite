@@ -3,12 +3,12 @@ DOCUMENT INFORMATION
 Document Name: SPECIFICATIONS_GLOBAL.md
 Author: Bruno DELNOZ
 Email: bruno.delnoz@protonmail.com
-Version: v1.1.2
-Date / Time: 2026-09-23
-Project: bt_air_suite / bt_air_suite.sh
+Version: v2.0.0
+Date / Time: 2026-09-23 07:57
+Project: bt_air_suite
+Short description: Stable global repository specification.
 -->
-
-# SPECIFICATIONS_GLOBAL — bt_air_suite.sh — v1.1.2
+# SPECIFICATIONS_GLOBAL — bt_air_suite.sh — v2.0.0
 
 ## 1. Purpose
 
@@ -38,13 +38,15 @@ bt_air_suite/
 ├── INSTALL.md
 ├── CHANGELOG.md
 ├── WHY.md
+├── EXAMPLES.md
 ├── SPECIFICATIONS.md
-├── SPECIFICATIONS_FR.md
 ├── SPECIFICATIONS_GLOBAL.md
-├── SPECIFICATIONS_GLOBAL_FR.md
 ├── myinfo/
 │   ├── known_devices.txt
-│   └── exclusions.txt
+│   ├── exclusionsbt.txt
+│   ├── exclusionsbt_enrichi.txt
+│   ├── exclusionsbt_oui_resolved.txt
+│   └── oui.txt
 └── .results/
 ```
 
@@ -97,7 +99,7 @@ Explicit target-changing tests remain separate actions.
 CLI arguments
 Bluetooth controller
 myinfo/known_devices.txt
-myinfo/exclusions.txt
+myinfo/exclusionsbt.txt
 explicit target MAC
 ```
 
@@ -175,3 +177,76 @@ Missing properties remain empty; they are not invented.
 - CSV and JSONL are generated from observed BlueZ data;
 - filtered output honors exclusions;
 - post-process can generate Markdown.
+
+
+## v2.0.0 global requirements
+
+### GFR-31 — Wi-Fi Air Suite interval parity
+
+For Bluetooth `--monitor`:
+
+- `--duration` is seconds;
+- `--interval` is minutes;
+- each interval receives an independent collision-safe prefix;
+- a finite remainder becomes the final slice;
+- `--archive-old` executes once before acquisition;
+- `--post-process` executes after each completed slice before the next slice;
+- post-process failure is reported without aborting subsequent valid scan intervals.
+
+### GFR-32 — Kate parity
+
+`--open-kate`:
+
+- is valid only with `--scan` or `--monitor`;
+- requires `--post-process`;
+- requires the `kate` executable before acquisition;
+- opens each newly generated `*.filtered.md`;
+- uses asynchronous invocation so the scan loop does not wait for the editor.
+
+### GFR-33 — canonical Bluetooth exclusion files
+
+The canonical local files are:
+
+```text
+myinfo/exclusionsbt.txt
+myinfo/exclusionsbt_enrichi.txt
+myinfo/exclusionsbt_oui_resolved.txt
+```
+
+### GFR-34 — local OUI database
+
+The canonical local database is `myinfo/oui.txt`.
+
+`--update-oui` must:
+
+1. download over HTTPS into a same-directory temporary file;
+2. validate non-empty content, minimum size and a substantial count of IEEE `(base 16)` entries;
+3. preserve the previous non-empty database as `myinfo/oui.txt.bak`;
+4. atomically replace `myinfo/oui.txt` only after validation;
+5. leave the current active OUI database unchanged on failed download or failed validation.
+
+### GFR-35 — safe Bluetooth OUI attribution
+
+Inventory output must expose address type, OUI prefix, vendor and OUI status.
+
+Vendor attribution may be asserted only for BlueZ-public addresses. BLE random/private addresses must be marked as random/private and must not be presented as reliably OUI-resolved.
+
+### GFR-36 — v2.0.0 runtime layout
+
+```text
+.results/
+  raw/
+  csv/
+  jsonl/
+  filtered/
+  enriched/
+  generated/
+  captures/
+  logs/
+  tmp/
+  archive/
+```
+
+### GFR-37 — Red Team preservation
+
+The bounded Red Team SDP enrichment introduced before v2.0.0 remains explicit and non-destructive. It does not automatically connect, pair, trust, remove, jam, fuzz or crash devices.

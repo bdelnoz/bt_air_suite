@@ -21,3 +21,25 @@ certs/
 
 # Python/editor noise if ever used around the repo
 __pycache__/
+
+# SOLO / local runtime safeguards
+.docs/
+.tmp/
+.private/
+.secrets/
+.log/
+.logs/
+.tracking_data/
+.report/
+.reports/
+.webactivity_reports/
+.exported_activity/
+.result/
+logs/
+output/
+.output/
+infos/
+.info/
+uploads/
+creation_log/
+*RULES_PRIVATE*

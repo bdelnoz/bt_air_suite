@@ -3,12 +3,12 @@ DOCUMENT INFORMATION
 Document Name: INSTALL.md
 Author: Bruno DELNOZ
 Email: bruno.delnoz@protonmail.com
-Version: v1.1.2
-Date / Time: 2026-09-23
-Project: bt_air_suite / bt_air_suite.sh
+Version: v2.0.0
+Date / Time: 2026-09-23 07:57
+Project: bt_air_suite
+Short description: Installation, prerequisites and first-run instructions.
 -->
-
-# INSTALL — bt_air_suite.sh — v1.1.2
+# INSTALL — bt_air_suite.sh — v2.0.0
 
 ## 1. Target environment
 
@@ -144,7 +144,7 @@ Edit:
 
 ```text
 myinfo/known_devices.txt
-myinfo/exclusions.txt
+myinfo/exclusionsbt.txt
 ```
 
 One MAC per line is sufficient. Additional text after the MAC is allowed.
@@ -185,3 +185,34 @@ A real Red Team monitor:
 now performs the 60-second discovery slice first, then bounded Classic SDP enrichment for the remote devices actually observed in that slice.
 
 `sdptool` is optional. If absent, discovery/inventory continues and the active SDP enrichment is skipped with a warning.
+
+
+## v2.0.0 first-run sequence
+
+```bash
+chmod +x bt_air_suite.sh
+./bt_air_suite.sh --version
+./bt_air_suite.sh --prerequis
+./bt_air_suite.sh --init
+./bt_air_suite.sh --update-oui
+./bt_air_suite.sh --status
+./bt_air_suite.sh --exec --power-on
+```
+
+Kate is optional. It is required only when `--open-kate` is requested.
+
+`curl` is installed by `--install` and is used for OUI updates. If curl is not available but `wget` is already installed, `--update-oui` can use wget instead.
+
+## Wi-Fi-style monitor example
+
+```bash
+./bt_air_suite.sh --exec --monitor \
+  --redteam \
+  --duration 300 \
+  --interval 1 \
+  --post-process \
+  --open-kate \
+  --nolog
+```
+
+Every completed interval is processed before the next interval starts. Each generated `*.filtered.md` is opened in Kate asynchronously.
