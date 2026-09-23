@@ -3,13 +3,13 @@ DOCUMENT INFORMATION
 Document Name: README.md
 Author: Bruno DELNOZ
 Email: bruno.delnoz@protonmail.com
-Version: v1.0.0
+Version: v1.1.0
 Date / Time: 2026-09-23
 Project: bt_air_suite / bt_air_suite.sh
 Short description: Project overview, canonical CLI, Red Team profiles and runtime layout.
 -->
 
-# bt_air_suite.sh — v1.0.0
+# bt_air_suite.sh — v1.1.0
 
 ## Purpose
 
@@ -47,7 +47,7 @@ bt_air_suite.sh
   --post-process
 ```
 
-`--aggressive-scan` is an alias for `--profile redteam`.
+`--passive`, `--active` and `--redteam` are direct profile aliases. `--aggressive-scan` remains a compatibility alias for the Red Team profile.
 
 The Red Team profile is deliberately focused on active discovery, fingerprinting, service enumeration, connection/pairing tests, RSSI monitoring and HCI capture. The generic suite does not implement RF jamming, forced disruption, destructive crash testing or aggressive fuzzing.
 
@@ -115,6 +115,9 @@ bt_air_suite/
 --controller auto|hciN|MAC
 --transport auto|le|bredr
 --profile passive|standard|redteam
+--passive
+--active
+--redteam
 --aggressive-scan
 --target MAC
 --duration SECONDS
@@ -139,7 +142,7 @@ BLE discovery:
 Rolling monitor:
 
 ```bash
-./bt_air_suite.sh --exec --monitor --infinite --interval 1 --profile redteam --post-process --nolog
+./bt_air_suite.sh --exec --monitor --redteam --infinite --interval 1 --post-process --nolog
 ```
 
 Fingerprint:

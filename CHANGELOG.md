@@ -3,12 +3,28 @@ DOCUMENT INFORMATION
 Document Name: CHANGELOG.md
 Author: Bruno DELNOZ
 Email: bruno.delnoz@protonmail.com
-Version: v1.0.0
+Version: v1.1.0
 Date / Time: 2026-09-23
 Project: bt_air_suite / bt_air_suite.sh
 -->
 
 # CHANGELOG — bt_air_suite.sh
+
+## v1.1.0 — 2026-09-23 — Bruno DELNOZ
+
+### ADDED
+
+- Direct `--passive` alias for `--profile passive`.
+- Direct `--active` alias for `--profile standard`.
+- Direct `--redteam` alias for `--profile redteam`.
+
+### PRESERVED
+
+- `--profile passive|standard|redteam`.
+- `--aggressive-scan` remains compatible and maps to the Red Team profile.
+- All v1.0.0 scan, monitor, fingerprint, service, RSSI, btmon, connect/pair, secure and hotplug actions.
+
+---
 
 ## v1.0.0 — 2026-09-23 — Bruno DELNOZ
 

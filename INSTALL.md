@@ -3,12 +3,12 @@ DOCUMENT INFORMATION
 Document Name: INSTALL.md
 Author: Bruno DELNOZ
 Email: bruno.delnoz@protonmail.com
-Version: v1.0.0
+Version: v1.1.0
 Date / Time: 2026-09-23
 Project: bt_air_suite / bt_air_suite.sh
 -->
 
-# INSTALL — bt_air_suite.sh — v1.0.0
+# INSTALL — bt_air_suite.sh — v1.1.0
 
 ## 1. Target environment
 

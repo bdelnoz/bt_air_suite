@@ -5,7 +5,7 @@
 # AUTHOR       : Bruno DELNOZ
 # EMAIL        : bruno.delnoz@protonmail.com
 # TARGET USAGE : Bluetooth / BLE defensive + authorized Red Team Swiss Army Knife
-# VERSION      : v1.0.0
+# VERSION      : v1.1.0
 # DATE         : 2026-09-23
 # ==============================================================================
 #
@@ -23,7 +23,7 @@
 set -u
 IFS=$'\n\t'
 
-VERSION="v1.0.0"
+VERSION="v1.1.0"
 SCRIPT_DATE="2026-09-23"
 SCRIPT_AUTHOR="Bruno DELNOZ"
 SCRIPT_EMAIL="bruno.delnoz@protonmail.com"
@@ -211,8 +211,17 @@ COMMON OPTIONS:
       standard : normal inspection
       redteam  : faster active discovery and richer inspection defaults
 
+  --passive
+      Direct alias for --profile passive.
+
+  --active
+      Direct alias for --profile standard.
+
+  --redteam
+      Direct alias for --profile redteam.
+
   --aggressive-scan
-      Alias for --profile redteam.
+      Compatibility alias for --redteam / --profile redteam.
 
   --target MAC
       Explicit remote device target.
@@ -261,7 +270,7 @@ EXAMPLES:
   ./bt_air_suite.sh --simulate --scan --transport le -d 20 --post-process
   ./bt_air_suite.sh --exec --scan --transport le -d 20 --post-process
 
-  ./bt_air_suite.sh --exec --monitor --infinite --interval 1 --profile redteam --post-process --nolog
+  ./bt_air_suite.sh --exec --monitor --redteam --infinite --interval 1 --post-process --nolog
 
   ./bt_air_suite.sh --exec --fingerprint --target AA:BB:CC:DD:EE:FF --profile redteam
   ./bt_air_suite.sh --exec --enum-services --target AA:BB:CC:DD:EE:FF
@@ -280,6 +289,11 @@ EOF
 
 show_changelog() {
     cat <<'EOF'
+v1.1.0 — 2026-09-23
+- Added direct profile aliases: --passive, --active, --redteam.
+- --aggressive-scan remains a compatibility alias for the Red Team profile.
+- Preserved --profile passive|standard|redteam.
+
 v1.0.0 — 2026-09-23
 - Initial unified Bluetooth Swiss Army Knife.
 - BlueZ Classic/BLE scanning.
@@ -370,6 +384,18 @@ parse_args() {
                 [[ $# -ge 2 ]] || die "Valeur manquante après --profile"
                 case "$2" in passive|standard|redteam) PROFILE="$2" ;; *) die "Profil invalide: $2" ;; esac
                 shift 2
+                ;;
+            --passive)
+                PROFILE="passive"
+                shift
+                ;;
+            --active)
+                PROFILE="standard"
+                shift
+                ;;
+            --redteam)
+                PROFILE="redteam"
+                shift
                 ;;
             --aggressive-scan)
                 PROFILE="redteam"

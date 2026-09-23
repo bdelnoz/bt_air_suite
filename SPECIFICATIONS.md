@@ -3,12 +3,12 @@ DOCUMENT INFORMATION
 Document Name: SPECIFICATIONS.md
 Author: Bruno DELNOZ
 Email: bruno.delnoz@protonmail.com
-Version: v1.0.0
+Version: v1.1.0
 Date / Time: 2026-09-23
 Project: bt_air_suite / bt_air_suite.sh
 -->
 
-# SPECIFICATIONS — Initial unified Bluetooth Swiss Army Knife — v1.0.0
+# SPECIFICATIONS — Initial unified Bluetooth Swiss Army Knife — v1.1.0
 
 ## 1. Purpose
 
@@ -110,9 +110,19 @@ MACs listed in `known_devices.txt` receive status `known`; others receive `unkno
 
 Explicit `--power-on` and `--power-off`.
 
-### FR-20 — Red Team profile
+### FR-20 — Direct profile aliases
 
-`--profile redteam` / `--aggressive-scan` selects more aggressive inspection defaults but does not automatically invoke connection/pairing tests.
+The CLI exposes:
+
+```text
+--passive  -> --profile passive
+--active   -> --profile standard
+--redteam  -> --profile redteam
+```
+
+`--aggressive-scan` remains a compatibility alias for the Red Team profile.
+
+The Red Team profile selects more aggressive inspection defaults but does not automatically invoke connection/pairing tests.
 
 ### FR-21 — no-log
 

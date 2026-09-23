@@ -3,12 +3,12 @@ DOCUMENT INFORMATION
 Document Name: SPECIFICATIONS_GLOBAL.md
 Author: Bruno DELNOZ
 Email: bruno.delnoz@protonmail.com
-Version: v1.0.0
+Version: v1.1.0
 Date / Time: 2026-09-23
 Project: bt_air_suite / bt_air_suite.sh
 -->
 
-# SPECIFICATIONS_GLOBAL — bt_air_suite.sh — v1.0.0
+# SPECIFICATIONS_GLOBAL — bt_air_suite.sh — v1.1.0
 
 ## 1. Purpose
 
@@ -69,7 +69,12 @@ The suite supports:
 
 ## 6. Red Team profile
 
-`--profile redteam` and `--aggressive-scan` increase inspection intensity but do not implicitly chain connection/pairing tests.
+`--profile redteam`, `--redteam` and `--aggressive-scan` select the Red Team inspection profile but do not implicitly chain connection/pairing tests.
+
+Direct profile aliases are stable:
+- `--passive` -> `--profile passive`
+- `--active` -> `--profile standard`
+- `--redteam` -> `--profile redteam`
 
 Explicit target-changing tests remain separate actions.
 

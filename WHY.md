@@ -3,12 +3,12 @@ DOCUMENT INFORMATION
 Document Name: WHY.md
 Author: Bruno DELNOZ
 Email: bruno.delnoz@protonmail.com
-Version: v1.0.0
+Version: v1.1.0
 Date / Time: 2026-09-23
 Project: bt_air_suite / bt_air_suite.sh
 -->
 
-# WHY — bt_air_suite.sh — v1.0.0
+# WHY — bt_air_suite.sh — v1.1.0
 
 ## Why one script
 
@@ -65,6 +65,16 @@ Bluetooth LE privacy/random addressing means an address can change. Correlation 
 The operator may need faster active discovery and explicit authorized interaction with lab devices.
 
 The profile therefore enables an aggressive *inspection* workflow without silently chaining actions.
+
+For operator convenience, v1.1.0 adds direct aliases:
+
+```text
+--passive
+--active
+--redteam
+```
+
+These map respectively to `--profile passive`, `--profile standard` and `--profile redteam`.
 
 ## Why destructive actions are not part of the generic profile
 
