@@ -1,30 +1,23 @@
-# PROJECT SPECIFIC
-uploads
-*.pid
-__pycache__
+# bt_air_suite runtime
+.results/
 *.log
-*.db
-creation_log
-*-swp
+*.pid
 *.tmp
-*.log
 *.bak
-*.pid
-# ========================================
-# Template: shell
-# Added: 2026-02-04 22:19:59
-# ========================================
-logs/
-output/
-infos/
-result/
-results/
-*.log
+*.swp
+*.btsnoop
+
+# archives / local history
+.old/
+.zip/
 *.zip
 *.tar.gz
 *.rar
-certs/
+
+# secrets / local material
 secrets/
 .secrets
-.old/
-.zip/
+certs/
+
+# Python/editor noise if ever used around the repo
+__pycache__/
