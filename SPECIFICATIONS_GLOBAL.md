@@ -3,12 +3,12 @@ DOCUMENT INFORMATION
 Document Name: SPECIFICATIONS_GLOBAL.md
 Author: Bruno DELNOZ
 Email: bruno.delnoz@protonmail.com
-Version: v2.0.0
-Date / Time: 2026-09-23 07:57
+Version: v3.0.0
+Date / Time: 2026-09-24 00:06
 Project: bt_air_suite
 Short description: Stable global repository specification.
 -->
-# SPECIFICATIONS_GLOBAL — bt_air_suite.sh — v2.0.0
+# SPECIFICATIONS_GLOBAL — bt_air_suite.sh — v3.0.0
 
 ## 1. Purpose
 
@@ -152,7 +152,7 @@ Missing properties remain empty; they are not invented.
 - connection and pairing tests require explicit target + execution gate;
 - `--pair-test` may change pairing state;
 - `--cleanup-pair` removes the local pairing record after the test;
-- generic v1.0.0 does not implement jamming, forced disruption, destructive crash testing or aggressive fuzzing.
+- the generic suite does not implement jamming, forced disruption, destructive crash testing or aggressive fuzzing.
 
 ## 13. Non-functional requirements
 
@@ -169,7 +169,7 @@ Missing properties remain empty; they are not invented.
 ## 14. Acceptance criteria
 
 - help and parser agree;
-- version is v1.0.0;
+- current release version is v3.0.0;
 - scan simulation parses;
 - target actions reject missing/invalid MAC;
 - interval is rejected outside monitor;
@@ -179,7 +179,7 @@ Missing properties remain empty; they are not invented.
 - post-process can generate Markdown.
 
 
-## v2.0.0 global requirements
+## v2.0.0 global requirements preserved in v3.0.0
 
 ### GFR-31 — Wi-Fi Air Suite interval parity
 
@@ -250,3 +250,27 @@ Vendor attribution may be asserted only for BlueZ-public addresses. BLE random/p
 ### GFR-37 — Red Team preservation
 
 The bounded Red Team SDP enrichment introduced before v2.0.0 remains explicit and non-destructive. It does not automatically connect, pair, trust, remove, jam, fuzz or crash devices.
+
+## v3.0.0 global release requirements
+
+### GFR-40 — major baseline continuity
+
+v3.0.0 preserves every supported v2.0.0 business action, control action, parser option, output directory and inventory field. No existing behavior may disappear solely because of the major version bump.
+
+### GFR-41 — Product Guide
+
+The complete release package includes:
+
+```text
+bt_air_suite_v3.0.0_Product_Guide.pdf
+```
+
+The guide must document installation, CLI concepts, monitor intervals, post-processing, Kate behavior, OUI handling, address types, Red Team boundaries, target actions, runtime layout, examples, troubleshooting, limitations and version history.
+
+### GFR-42 — documentation synchronization
+
+README, INSTALL, CHANGELOG, WHY, EXAMPLES, SPECIFICATIONS and SPECIFICATIONS_GLOBAL must identify v3.0.0 as the current release while retaining historical version context where relevant.
+
+### GFR-43 — exhaustive examples
+
+`EXAMPLES.md` remains the exhaustive CLI command reference and must contain every option documented by `--help`, including compatibility aliases and reserved/rejected options.

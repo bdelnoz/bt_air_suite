@@ -3,12 +3,12 @@ DOCUMENT INFORMATION
 Document Name: SPECIFICATIONS.md
 Author: Bruno DELNOZ
 Email: bruno.delnoz@protonmail.com
-Version: v2.0.0
-Date / Time: 2026-09-23 07:57
+Version: v3.0.0
+Date / Time: 2026-09-24 00:06
 Project: bt_air_suite
 Short description: Task-scoped functional specification.
 -->
-# SPECIFICATIONS — Initial unified Bluetooth Swiss Army Knife — v2.0.0
+# SPECIFICATIONS — Unified Bluetooth Swiss Army Knife — v3.0.0
 
 ## 1. Purpose
 
@@ -185,7 +185,7 @@ The enrichment:
 
 `--connect-test` and `--pair-test` remain explicit actions and are never implicitly triggered by `--redteam`.
 
-## 3. Out of scope for v1.0.0
+## 3. Out of scope - baseline unchanged since v1.0.0
 
 ```text
 RF jamming
@@ -209,7 +209,7 @@ bash -n bt_air_suite.sh
 ```
 
 
-## v2.0.0 task requirements
+## v2.0.0 task requirements preserved in v3.0.0
 
 ### FR-31 — exclusionsbt rename
 
@@ -312,3 +312,25 @@ The CLI supports:
 ### FR-41 — exhaustive examples document
 
 The complete package includes `EXAMPLES.md`, documenting every action, control action, profile, transport, output option, target option, OUI workflow, hotplug workflow and representative option combination.
+
+## v3.0.0 release task requirements
+
+### FR-45 — current version
+
+The script, root documentation metadata and Product Guide identify the current release as `v3.0.0`.
+
+### FR-46 — behavior preservation
+
+The v3 major release must not remove any v2.0.0 action, alias, output directory, OUI field, address-type classification, post-processing behavior or explicit Red Team boundary.
+
+### FR-47 — Product Guide packaging
+
+The complete package includes `bt_air_suite_v3.0.0_Product_Guide.pdf` at repository root.
+
+### FR-48 — Product Guide layout
+
+The Product Guide follows the established NoXoZ product-document visual language: cover page, contents, blue section headers, structured tables, code examples, callout boxes and page footers.
+
+### FR-49 — documentation consistency gate
+
+Before packaging, current-version references, parser/help examples, README/INSTALL/WHY descriptions and EXAMPLES coverage must be checked for consistency.

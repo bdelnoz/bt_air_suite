@@ -3,12 +3,12 @@ DOCUMENT INFORMATION
 Document Name: WHY.md
 Author: Bruno DELNOZ
 Email: bruno.delnoz@protonmail.com
-Version: v2.0.0
-Date / Time: 2026-09-23 07:57
+Version: v3.0.0
+Date / Time: 2026-09-24 00:06
 Project: bt_air_suite
 Short description: Project rationale, design choices and boundaries.
 -->
-# WHY — bt_air_suite.sh — v2.0.0
+# WHY — bt_air_suite.sh — v3.0.0
 
 ## Why one script
 
@@ -140,3 +140,9 @@ A local `myinfo/oui.txt` avoids one Internet lookup per device and makes post-pr
 ## Why random BLE addresses are not treated like public IEEE addresses
 
 A private/random BLE address can accidentally begin with bytes that resemble a registered OUI. v2.0.0 therefore records the address type and does not assert an OUI vendor unless BlueZ identifies the device address as public.
+
+## Why v3.0.0 is a major release
+
+The v2.0.0 engine reached the intended operator model: Wi-Fi Air Suite style interval sessions, per-slice post-processing, asynchronous Kate opening, offline OUI enrichment, Bluetooth address-type safety and bounded Red Team inspection.
+
+v3.0.0 freezes that validated behavior as a clean major baseline and adds a complete long-form Product Guide plus a repository-wide documentation/version audit. The major version is a packaging and documentation baseline, not a behavioral rewrite.

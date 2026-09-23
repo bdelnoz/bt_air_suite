@@ -3,12 +3,12 @@ DOCUMENT INFORMATION
 Document Name: INSTALL.md
 Author: Bruno DELNOZ
 Email: bruno.delnoz@protonmail.com
-Version: v2.0.0
-Date / Time: 2026-09-23 07:57
+Version: v3.0.0
+Date / Time: 2026-09-24 00:06
 Project: bt_air_suite
 Short description: Installation, prerequisites and first-run instructions.
 -->
-# INSTALL — bt_air_suite.sh — v2.0.0
+# INSTALL — bt_air_suite.sh — v3.0.0
 
 ## 1. Target environment
 
@@ -106,7 +106,7 @@ If Bluetooth is soft-blocked or the controller is powered off:
 ./bt_air_suite.sh --exec --power-on
 ```
 
-v1.1.1 refuses to generate scan slices until the controller is ready.
+Since v1.1.1, the suite refuses to generate scan slices until the controller is ready; this behavior is preserved in v3.0.0.
 
 ## 7. Safe simulation
 
@@ -169,7 +169,7 @@ bash -n bt_air_suite.sh
 ```
 
 
-## Red Team v1.1.2 behavior
+## Red Team behavior introduced in v1.1.2 and preserved in v3.0.0
 
 A real Red Team monitor:
 
@@ -187,7 +187,7 @@ now performs the 60-second discovery slice first, then bounded Classic SDP enric
 `sdptool` is optional. If absent, discovery/inventory continues and the active SDP enrichment is skipped with a warning.
 
 
-## v2.0.0 first-run sequence
+## v2.0.0 first-run sequence preserved in v3.0.0
 
 ```bash
 chmod +x bt_air_suite.sh

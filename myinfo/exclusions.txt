@@ -1,4 +1,7 @@
-# Devices excluded from filtered output only.
+# Bluetooth devices excluded from filtered output only.
 # Raw acquisition remains preserved.
 # Format:
 # AA:BB:CC:DD:EE:FF optional description
+#
+7C:64:56:AF:3D:23 Samsung Soundbar M360 M-Series
+54:F1:5F:7F:C1:0B Formuler Z8 Pro

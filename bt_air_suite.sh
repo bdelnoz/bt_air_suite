@@ -5,8 +5,8 @@
 # AUTHOR       : Bruno DELNOZ
 # EMAIL        : bruno.delnoz@protonmail.com
 # TARGET USAGE : Bluetooth / BLE defensive + authorized Red Team Swiss Army Knife
-# VERSION      : v2.0.0
-# DATE         : 2026-09-23 07:57
+# VERSION      : v3.0.0
+# DATE         : 2026-09-24 00:06
 # ==============================================================================
 #
 # DESIGN
@@ -23,8 +23,8 @@
 set -u
 IFS=$'\n\t'
 
-VERSION="v2.0.0"
-SCRIPT_DATE="2026-09-23 07:57"
+VERSION="v3.0.0"
+SCRIPT_DATE="2026-09-24 00:06"
 SCRIPT_AUTHOR="Bruno DELNOZ"
 SCRIPT_EMAIL="bruno.delnoz@protonmail.com"
 
@@ -358,7 +358,7 @@ RUNTIME LAYOUT:
 
 RESERVED / NOT IMPLEMENTED:
   --lab-destructive
-      Reserved name. Explicitly rejected by the parser in v2.0.0.
+      Reserved name. Explicitly rejected by the parser in v3.0.0.
 
 RED TEAM BOUNDARY:
   Red Team mode performs discovery plus bounded Classic SDP service enumeration
@@ -394,6 +394,19 @@ EOF
 
 show_changelog() {
     cat <<'EOF'
+v3.0.0 — 2026-09-24 00:06
+- MAJOR: promoted the validated v2.0.0 behavior to the v3 baseline without
+  removing or renaming any supported action, option, runtime path or data format.
+- ADDED: complete Product Guide delivery for the repository, aligned with the
+  README / INSTALL / WHY / SPECIFICATIONS / EXAMPLES documentation set.
+- CHANGED: current-version help/documentation references now identify v3.0.0.
+- PRESERVED: Wi-Fi Air Suite interval/post-process/Kate parity, OUI update with
+  validation/backup/atomic replacement, public-vs-random Bluetooth address safety,
+  per-slice RSSI, local-controller exclusion, bounded Red Team SDP enrichment,
+  explicit target tests, btmon capture, UB500 hotplug support and runtime layout.
+- VALIDATION: parser/help parity, no-argument help, syntax, simulations, OUI data
+  integrity and controlled mock scan/post-process/Kate behavior were rechecked.
+
 v2.0.0 — 2026-09-23 07:57
 - MAJOR: monitor interval/post-process/Kate workflow aligned with wifi_air_suite.
 - CHANGED: --duration remains seconds; --interval remains minutes; each completed
@@ -1724,7 +1737,7 @@ post_process_inventory() {
     filter_inventory "$csv" "$filtered"
     csv_to_markdown "$filtered" "$filtered_md"
 
-    # The primary inventory CSV is already OUI-enriched in v2.0.0.
+    # The primary inventory CSV has been OUI-enriched since v2.0.0.
     # Keep the dedicated enriched artifact to mirror the Wi-Fi suite layout.
     cp -f "$filtered" "$enriched"
 

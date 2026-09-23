@@ -3,12 +3,12 @@ DOCUMENT INFORMATION
 Document Name: README.md
 Author: Bruno DELNOZ
 Email: bruno.delnoz@protonmail.com
-Version: v2.0.0
-Date / Time: 2026-09-23 07:57
+Version: v3.0.0
+Date / Time: 2026-09-24 00:06
 Project: bt_air_suite
 Short description: Main documentation for the Bluetooth/BLE air suite.
 -->
-# bt_air_suite.sh — v2.0.0
+# bt_air_suite.sh — v3.0.0
 
 ## Purpose
 
@@ -19,6 +19,21 @@ It merges the useful concepts of the previous Bluetooth scripts into one CLI ent
 The Wi-Fi reference separates capture/check/crack/attack actions and uses one explicit execution gate. The Bluetooth suite preserves the same design principle.
 
 
+
+
+## v3.0.0 major release baseline
+
+`v3.0.0` is the major release baseline built from the validated v2.0.0 behavior. It is intentionally conservative: the operational engine, CLI contract, runtime layout, OUI workflow, Red Team boundary and Wi-Fi Air Suite parity remain intact.
+
+The v3 release adds a complete Product Guide and performs a full documentation/version-alignment pass across the repository.
+
+Product Guide:
+
+```text
+bt_air_suite_v3.0.0_Product_Guide.pdf
+```
+
+The Product Guide is the long-form operator manual. `EXAMPLES.md` remains the exhaustive copy/paste CLI cookbook.
 
 ## v1.1.2 — remote-only inventory, RSSI capture and real Red Team enrichment
 
@@ -159,6 +174,9 @@ bt_air_suite/
 ├── EXAMPLES.md
 ├── SPECIFICATIONS.md
 ├── SPECIFICATIONS_GLOBAL.md
+├── VALIDATION_REPORT.md
+├── bt_air_suite_v3.0.0_Product_Guide.pdf
+├── .gitignore
 ├── myinfo/
 │   ├── known_devices.txt
 │   ├── exclusionsbt.txt
@@ -269,9 +287,9 @@ Bluetooth LE devices can use changing/randomized addresses, so a MAC must not au
 The package intentionally mirrors the Wi-Fi documentation set, whose canonical repository architecture includes README, INSTALL, CHANGELOG, WHY, task specifications and global specifications.
 
 
-## v2.0.0 major behavior
+## v2.0.0 behavior preserved in v3.0.0
 
-v2.0.0 aligns the Bluetooth monitor workflow with the interval/post-process behavior of `wifi_air_suite.sh`.
+v2.0.0 introduced, and v3.0.0 preserves, the Bluetooth monitor workflow with the interval/post-process behavior of `wifi_air_suite.sh`.
 
 ### Monitor session behavior
 

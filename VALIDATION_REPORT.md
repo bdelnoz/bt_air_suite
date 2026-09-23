@@ -3,65 +3,58 @@ DOCUMENT INFORMATION
 Document Name: VALIDATION_REPORT.md
 Author: Bruno DELNOZ
 Email: bruno.delnoz@protonmail.com
-Version: v2.0.0
-Date / Time: 2026-09-23 07:57
+Version: v3.0.0
+Date / Time: 2026-09-24 00:06
 Project: bt_air_suite
-Short description: Executed validation summary for the v2.0.0 package.
+Short description: Executed validation summary for the v3.0.0 complete package.
 -->
-# Validation report — bt_air_suite v2.0.0
+# Validation report - bt_air_suite v3.0.0
 
 ## Executed checks
 
-- Bash syntax (`bash -n`): **OK**
-- `--version`: **OK** (`v2.0.0`)
-- `--help`: **OK**
-- No-argument help behavior: **OK**
-- `--changelog` preserves v2.0.0 + v1.1.2 + v1.1.1 + v1.1.0 + v1.0.0: **OK**
-- Simulation of Red Team monitor + interval + post-process + Kate + nolog: **OK**
-- Simulation of `--update-oui`: **OK**
-- Parser/help CLI parity: **OK** (70 parser labels documented in help)
-- Parser/EXAMPLES.md parity: **OK** (70 parser labels covered)
-- Bundled OUI database validation: **OK** (6132821 bytes, 37577 base-16 entries)
-- Canonical `myinfo/exclusionsbt.txt`: **OK**
-- No legacy `myinfo/exclusions.txt`: **OK**
-- No French specification files in the package: **OK** (explicit project choice)
+- `bash-n`: **OK**
+- `version`: **OK** - v3.0.0
+- `no-argument-help`: **OK** - ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━;   bt_air_suite.sh – v3.0.0 – 2026-09-24 00:06;   Author : Bruno DELNOZ <bruno.delnoz@protonmail.com>; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- `help`: **OK** - ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━;   bt_air_suite.sh – v3.0.0 – 2026-09-24 00:06;   Author : Bruno DELNOZ <bruno.delnoz@protonmail.com>; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- `changelog`: **OK** - v3.0.0 — 2026-09-24 00:06; - MAJOR: promoted the validated v2.0.0 behavior to the v3 baseline without;   removing or renaming any supported action, option, runtime path or data format.; - ADDED: complete Product Guide delivery for the repos
+- `simulate-scan`: **OK** - SIMULATION — no Bluetooth/system change will be performed.; VERSION=v3.0.0; ACTION=scan; EXEC_MODE=0; SIMULATE_MODE=1; CONTROLLER=auto; HCI_IFACE=auto; TRANSPORT=le; PROFILE=standard; TARGET=; DURATION=2; INFINITE=0; INTERVAL_MINUTES=; POST
+- `simulate-monitor`: **OK** - SIMULATION — no Bluetooth/system change will be performed.; VERSION=v3.0.0; ACTION=monitor; EXEC_MODE=0; SIMULATE_MODE=1; CONTROLLER=auto; HCI_IFACE=auto; TRANSPORT=auto; PROFILE=redteam; TARGET=; DURATION=300; INFINITE=0; INTERVAL_MINUTES=
+- `simulate-update-oui`: **OK** - SIMULATION — OUI database will not be modified.; Would download: https://standards-oui.ieee.org/oui/oui.txt; Would validate temporary file.; Would preserve current database as: /mnt/data/bt_air_suite_v3.0.0/myinfo/oui.txt.bak; Would atomica
+- `simulate-btmon`: **OK** - SIMULATION — no Bluetooth/system change will be performed.; VERSION=v3.0.0; ACTION=capture-btmon; EXEC_MODE=0; SIMULATE_MODE=1; CONTROLLER=hci0; HCI_IFACE=hci0; TRANSPORT=auto; PROFILE=standard; TARGET=; DURATION=2; INFINITE=0; INTERVAL_MIN
+- `simulate-pair`: **OK** - SIMULATION — no Bluetooth/system change will be performed.; VERSION=v3.0.0; ACTION=pair-test; EXEC_MODE=0; SIMULATE_MODE=1; CONTROLLER=auto; HCI_IFACE=auto; TRANSPORT=auto; PROFILE=standard; TARGET=AA:BB:CC:DD:EE:FF; DURATION=; INFINITE=0; 
+- `packaged-oui-integrity`: **OK** - bytes=6132821, base16_entries=37577
+- `examples-help-option-coverage`: **OK** - 60 long options covered
+- `documentation-current-version-metadata`: **OK** - 7/7 root project Markdown files aligned
+- `controlled-mock-scan-postprocess-kate`: **OK** - [*] SCAN slice=1 duration=2s transport=auto profile=redteam; [*] Raw: /mnt/data/_bt_v3_mock/project/.results/raw/20260923_221219_1.raw.txt; SetDiscoveryFilter success; Discovery started; [CHG] Controller E8:48:B8:C8:20:00 Discovering: yes; 
+- `mock-controller-exclusion-and-rssi`: **OK** - local controller excluded; last RSSI -64/-52 present
+- `mock-kate-asynchronous-invocation`: **OK** - filtered Markdown passed to Kate
+- `mock-real-window-timing`: **OK** - 2.53s wall time for requested 2s scan plus post-process
+- `no-placeholders`: **OK** - PASS
 
-## Executed mock integration tests
 
-A controlled mock BlueZ environment was executed against the real v2.0.0 script:
+## Product Guide validation
 
-- real bounded scan-window logic: **OK**
-- local `Controller <MAC>` excluded from remote inventory: **OK**
-- last per-slice RSSI preserved: **OK**
-- public Samsung OUI resolution: **OK**
-- public Sichuan AI-Link OUI resolution: **OK**
-- random-static BLE address classification: **OK**
-- no OUI vendor asserted for the random BLE address: **OK**
-- exclusion filtering: **OK**
-- Red Team bounded SDP report: **OK**
-- asynchronous Kate invocation after filtered Markdown creation: **OK**
+- `bt_air_suite_v3.0.0_Product_Guide.pdf`: generated successfully.
+- Page count: **17 pages**.
+- PDF preflight: **openable, not encrypted, not scanned, no XFA**.
+- Render verification: **17/17 pages rendered successfully**.
+- Visual spot-check: cover, two-page contents, workflow/code/table pages, version history and final page checked for clipping/overlap.
 
-A controlled mock OUI update was also executed:
+## Documentation synchronization
 
-- valid update accepted: **OK**
-- previous database saved as `oui.txt.bak`: **OK**
-- validated temporary file atomically promoted to `oui.txt`: **OK**
-- invalid update rejected: **OK**
-- active OUI database preserved after invalid update: **OK**
+- Current project Markdown metadata: v3.0.0.
+- Product Guide: included in the complete package.
+- `EXAMPLES.md`: all long options shown by `--help` are represented.
+- Historical changelog and historical feature sections are retained.
+- No French specification files are added, matching the repository choice already made for this project.
 
-## Anti-regression gate against v1.1.2
+## Anti-regression status
 
-- Functions v1.1.2: 79
-- Functions v2.0.0: 88
-- Missing v1.1.2 functions: **0**
-- Parser labels v1.1.2: 67
-- Parser labels v2.0.0: 70
-- Missing v1.1.2 CLI labels: **0**
-- Script lines: 1670 → 2149
-- Script bytes: 50826 → 68380
+- v2.0.0 operational script used as the baseline.
+- No supported v2.0.0 function or parser option was intentionally removed.
+- Runtime directories and inventory field order are preserved.
+- v3.0.0 changes are release/version alignment plus documentation/Product Guide packaging.
 
-Status: **OK**
+## Final status
 
-## Environment limitation
-
-The build environment does not expose the user's physical Bluetooth adapter, so RF/BlueZ behavior on the real UB500 was not executed here. The real-device acceptance test remains the user's Kali run.
+**OK** - package generation may proceed.

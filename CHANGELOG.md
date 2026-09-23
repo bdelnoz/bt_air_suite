@@ -3,12 +3,43 @@ DOCUMENT INFORMATION
 Document Name: CHANGELOG.md
 Author: Bruno DELNOZ
 Email: bruno.delnoz@protonmail.com
-Version: v2.0.0
-Date / Time: 2026-09-23 07:57
+Version: v3.0.0
+Date / Time: 2026-09-24 00:06
 Project: bt_air_suite
 Short description: Append-only project changelog.
 -->
 # CHANGELOG — bt_air_suite.sh
+
+## v3.0.0 — 2026-09-24 00:06 — Bruno DELNOZ
+
+### MAJOR RELEASE
+
+- Promotes the validated v2.0.0 implementation to the v3 baseline.
+- No supported v2.0.0 business action, option, output directory, data field or safety boundary is removed.
+- Adds the complete `bt_air_suite_v3.0.0_Product_Guide.pdf` to the release package.
+- Audits and synchronizes README, INSTALL, WHY, EXAMPLES, task specifications, global specifications and validation documentation.
+- Keeps `EXAMPLES.md` as the exhaustive copy/paste command reference for every supported CLI action and option.
+
+### PRESERVED
+
+- Wi-Fi Air Suite style monitor intervals, finite remainder handling and per-slice post-processing.
+- `--open-kate` parity: every newly generated filtered Markdown is opened asynchronously and never blocks the following slice.
+- `myinfo/exclusionsbt.txt` plus enriched and OUI-resolved exclusion inventories.
+- Official IEEE OUI database workflow with temporary download, validation, backup and atomic replacement.
+- Public/random Bluetooth address classification and safe vendor attribution.
+- Last-RSSI-per-slice extraction, local controller exclusion and CSV/JSONL inventory.
+- Passive, standard/active and bounded Red Team profiles.
+- Explicit fingerprint, service enumeration, RSSI monitoring, btmon capture, connection test, pairing test, controller security and UB500 hotplug actions.
+
+### VALIDATION
+
+- `bash -n`: PASS.
+- No-argument help: PASS.
+- `--help`, `--version`, `--changelog`: PASS.
+- All documented parser options remain present.
+- Controlled mock scan/post-process/OUI/Kate validation: PASS.
+
+---
 
 ## v2.0.0 — 2026-09-23 07:57 — Bruno DELNOZ
 

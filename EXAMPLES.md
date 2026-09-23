@@ -3,14 +3,16 @@ DOCUMENT INFORMATION
 Document Name: EXAMPLES.md
 Author: Bruno DELNOZ
 Email: bruno.delnoz@protonmail.com
-Version: v2.0.0
-Date / Time: 2026-09-23 07:57
+Version: v3.0.0
+Date / Time: 2026-09-24 00:06
 Project: bt_air_suite
 Short description: Exhaustive command examples and behavior reference for every supported bt_air_suite.sh action and option.
 -->
-# bt_air_suite.sh v2.0.0 — Exhaustive Examples
+# bt_air_suite.sh v3.0.0 — Exhaustive Examples
 
-This document is the exhaustive operator-oriented command reference for the v2.0.0 CLI.
+This document is the exhaustive operator-oriented command reference for the v3.0.0 CLI.
+
+For long-form architecture, workflow and troubleshooting explanations, see `bt_air_suite_v3.0.0_Product_Guide.pdf`.
 
 All commands assume the current directory contains `bt_air_suite.sh`.
 
@@ -500,7 +502,7 @@ Stop with CTRL-C or from another terminal using `--stop`.
 ./bt_air_suite.sh --exec --monitor
 ```
 
-Because non-interactive BlueZ discovery is bounded internally, v2.0.0 implements this as repeated 60-second slices until interruption.
+Because non-interactive BlueZ discovery is bounded internally, v3.0.0 preserves the v2.0.0 implementation as repeated 60-second slices until interruption.
 
 ## 18. `--accept`
 
@@ -649,7 +651,7 @@ Known devices are labeled through the inventory `status` field.
 
 ## 24. Bluetooth address type and OUI fields
 
-v2.0.0 CSV/JSONL inventory contains:
+v3.0.0 CSV/JSONL inventory contains:
 
 ```text
 timestamp
@@ -1188,7 +1190,7 @@ target actions without --target
 
 ## 44. Red Team safety boundary
 
-The generic v2.0.0 Red Team profile supports bounded discovery/enumeration behavior and keeps state-changing connection/pairing tests as separate explicit actions.
+The generic v3.0.0 Red Team profile supports bounded discovery/enumeration behavior and keeps state-changing connection/pairing tests as separate explicit actions.
 
 The generic suite does not implement:
 
@@ -1209,7 +1211,7 @@ The parser recognizes the reserved name:
 ./bt_air_suite.sh --lab-destructive
 ```
 
-v2.0.0 intentionally rejects it with an explicit error. No destructive lab action is implemented behind this flag.
+v3.0.0 intentionally rejects it with an explicit error. No destructive lab action is implemented behind this flag.
 
 ## 45. Canonical operator command
 
