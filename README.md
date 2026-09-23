@@ -3,13 +3,13 @@ DOCUMENT INFORMATION
 Document Name: README.md
 Author: Bruno DELNOZ
 Email: bruno.delnoz@protonmail.com
-Version: v1.1.0
+Version: v1.1.2
 Date / Time: 2026-09-23
 Project: bt_air_suite / bt_air_suite.sh
 Short description: Project overview, canonical CLI, Red Team profiles and runtime layout.
 -->
 
-# bt_air_suite.sh — v1.1.0
+# bt_air_suite.sh — v1.1.2
 
 ## Purpose
 
@@ -17,7 +17,74 @@ Short description: Project overview, canonical CLI, Red Team profiles and runtim
 
 It merges the useful concepts of the previous Bluetooth scripts into one CLI entry point and mirrors the operational philosophy of `wifi_air_suite.sh`: explicit actions, `--exec` / `--simulate`, runtime isolation, interval acquisition, post-processing and predictable output paths.
 
-The Wi-Fi reference separates capture/check/crack/attack actions and uses one explicit execution gate. The Bluetooth suite preserves the same design principle. fileciteturn11file0L12-L50
+The Wi-Fi reference separates capture/check/crack/attack actions and uses one explicit execution gate. The Bluetooth suite preserves the same design principle.
+
+
+
+## v1.1.2 — remote-only inventory, RSSI capture and real Red Team enrichment
+
+v1.1.2 fixes three issues confirmed by the first real v1.1.1 acquisition.
+
+### Local controller exclusion
+
+BlueZ emits controller events such as:
+
+```text
+[CHG] Controller E8:48:B8:C8:20:00 Discovering: yes
+```
+
+and remote-device events such as:
+
+```text
+[CHG] Device 54:F1:5F:7F:C1:0B RSSI: 0xffffffcc (-52)
+```
+
+Only `Device <MAC>` events now define slice membership. The local controller MAC is never exported as a discovered remote device.
+
+### RSSI from the actual slice
+
+RSSI is dynamic and may no longer be present in `bluetoothctl info` after discovery stops.
+
+v1.1.2 therefore stores the **last RSSI event seen for each device inside the current raw scan window**. `bluetoothctl info` is only a fallback.
+
+### Red Team is now behaviorally different
+
+`--redteam` / `--profile redteam` now means:
+
+```text
+normal timed discovery
+→ remote-only per-slice inventory
+→ bounded active Classic SDP browse for observed remote devices
+→ dedicated *.redteam.txt report
+```
+
+The active enrichment is bounded to 8 seconds per target and at most 12 targets per slice.
+
+It does **not** automatically connect, pair, trust, remove, jam, fuzz or crash a device.
+
+## v1.1.1 scan timing and slice isolation
+
+v1.1.1 corrects the interval behavior observed during the first real Red Team monitor test.
+
+A scan slice now uses:
+
+```text
+bluetoothctl --timeout SECONDS scan on|le|bredr
+```
+
+The non-interactive BlueZ client therefore remains active for the requested scan window.
+
+Each result set is built from MAC addresses extracted from the **raw output of that exact slice**. The suite no longer uses a global `bluetoothctl devices` listing as the source of slice membership, because BlueZ can retain device objects after discovery.
+
+If a scan returns materially earlier than requested, the slice is rejected and a rolling monitor stops instead of creating misleading interval files.
+
+Before discovery, the suite also verifies that Bluetooth is not soft-blocked and that the controller is powered. Use:
+
+```bash
+./bt_air_suite.sh --exec --power-on
+```
+
+to clear a Bluetooth rfkill soft block and power the controller on.
 
 ## Main script
 
@@ -197,4 +264,4 @@ Bluetooth LE devices can use changing/randomized addresses, so a MAC must not au
 
 ## Documentation set
 
-The package intentionally mirrors the Wi-Fi documentation set, whose canonical repository architecture includes README, INSTALL, CHANGELOG, WHY, task specifications and global specifications. fileciteturn11file2L39-L54
+The package intentionally mirrors the Wi-Fi documentation set, whose canonical repository architecture includes README, INSTALL, CHANGELOG, WHY, task specifications and global specifications.

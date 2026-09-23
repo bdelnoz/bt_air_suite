@@ -3,12 +3,12 @@ DOCUMENT INFORMATION
 Document Name: WHY.md
 Author: Bruno DELNOZ
 Email: bruno.delnoz@protonmail.com
-Version: v1.1.0
+Version: v1.1.2
 Date / Time: 2026-09-23
 Project: bt_air_suite / bt_air_suite.sh
 -->
 
-# WHY — bt_air_suite.sh — v1.1.0
+# WHY — bt_air_suite.sh — v1.1.2
 
 ## Why one script
 
@@ -24,7 +24,7 @@ Each historical capability becomes an explicit action instead of remaining a sep
 
 ## Why mirror wifi_air_suite
 
-The Wi-Fi project already has useful operational contracts: one explicit action, `--exec` for real execution, `--simulate`, interval acquisition, runtime directories, post-processing and stable documentation. Its global specification explicitly defines those contracts. fileciteturn11file2L21-L37
+The Wi-Fi project already has useful operational contracts: one explicit action, `--exec` for real execution, `--simulate`, interval acquisition, runtime directories, post-processing and stable documentation. Its global specification explicitly defines those contracts.
 
 The Bluetooth project adopts the same operator model without pretending Bluetooth is Wi-Fi.
 
@@ -93,3 +93,35 @@ Long monitoring sessions can create large terminal logs. `--nolog` disables pers
 ## Why hotplug support remains
 
 The previous UB500 tooling contained useful automatic secure-state behavior. v1.0.0 preserves the concept as explicit install/remove/test actions while keeping the main suite controller-generic.
+
+
+## Why v1.1.1 changed scan timing
+
+The first real rolling-monitor test showed that wrapping `bluetoothctl scan on` in GNU `timeout` was not sufficient: the non-interactive `bluetoothctl` command could return immediately after configuring discovery.
+
+v1.1.1 therefore uses BlueZ's own `bluetoothctl --timeout SECONDS` option for scan windows.
+
+## Why each slice has its own seen-MAC list
+
+BlueZ may keep device objects after a discovery session. A global device listing can therefore contain devices not actually observed during the current slice.
+
+v1.1.1 extracts the addresses from the raw output produced by the current scan window and enriches only those addresses.
+
+
+## Why v1.1.2 extracts only `Device` events
+
+The real v1.1.1 raw output contains the local BlueZ controller address in `Controller ...` events. A generic MAC regex therefore incorrectly classified the local adapter as a discovered device.
+
+v1.1.2 uses only `Device <MAC>` events as remote membership evidence.
+
+## Why RSSI comes from the raw slice
+
+The real scan showed RSSI values in `[CHG] Device ... RSSI` events while the later `bluetoothctl info` output no longer contained RSSI.
+
+The raw discovery event is therefore the stronger per-slice source for RSSI.
+
+## Why Red Team performs bounded SDP enrichment
+
+Before v1.1.2, the Red Team profile mainly changed defaults. v1.1.2 gives it a concrete active but non-destructive behavior: after discovery, Classic SDP enumeration is attempted on observed remote devices with strict timeout and target-count bounds.
+
+Connection, pairing and other state-changing tests remain separate explicit actions.

@@ -3,12 +3,12 @@ DOCUMENT INFORMATION
 Document Name: SPECIFICATIONS_GLOBAL.md
 Author: Bruno DELNOZ
 Email: bruno.delnoz@protonmail.com
-Version: v1.1.0
+Version: v1.1.2
 Date / Time: 2026-09-23
 Project: bt_air_suite / bt_air_suite.sh
 -->
 
-# SPECIFICATIONS_GLOBAL — bt_air_suite.sh — v1.1.0
+# SPECIFICATIONS_GLOBAL — bt_air_suite.sh — v1.1.2
 
 ## 1. Purpose
 
@@ -69,7 +69,7 @@ The suite supports:
 
 ## 6. Red Team profile
 
-`--profile redteam`, `--redteam` and `--aggressive-scan` select the Red Team inspection profile but do not implicitly chain connection/pairing tests.
+`--profile redteam`, `--redteam` and `--aggressive-scan` select the Red Team inspection profile. The profile adds bounded Classic SDP enrichment for observed remote devices while still never implicitly chaining connection/pairing tests.
 
 Direct profile aliases are stable:
 - `--passive` -> `--profile passive`
@@ -84,6 +84,10 @@ Explicit target-changing tests remain separate actions.
 - `--interval` is minutes.
 - `--interval` is monitor-only.
 - every monitor slice gets a unique timestamp/collision-safe prefix;
+- every slice uses `bluetoothctl --timeout SECONDS` for its real discovery window;
+- slice membership comes only from BlueZ `Device <MAC>` events observed in that slice's raw scan output;
+- local `Controller <MAC>` events are excluded from remote-device inventory;
+- the last raw per-slice RSSI event is the primary RSSI source;
 - a finite final slice uses only remaining seconds;
 - infinite mode runs until interruption.
 
@@ -152,6 +156,8 @@ Missing properties remain empty; they are not invented.
 
 - `bash -n bt_air_suite.sh` succeeds;
 - no silent overwrite of acquisition slices;
+- a materially early scan exit invalidates the slice and stops rolling monitor generation;
+- soft-blocked or Powered=no controllers are rejected before discovery;
 - predictable runtime paths;
 - no password storage;
 - sudo handled by sudo itself;

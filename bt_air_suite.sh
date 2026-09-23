@@ -5,7 +5,7 @@
 # AUTHOR       : Bruno DELNOZ
 # EMAIL        : bruno.delnoz@protonmail.com
 # TARGET USAGE : Bluetooth / BLE defensive + authorized Red Team Swiss Army Knife
-# VERSION      : v1.1.0
+# VERSION      : v1.1.2
 # DATE         : 2026-09-23
 # ==============================================================================
 #
@@ -23,7 +23,7 @@
 set -u
 IFS=$'\n\t'
 
-VERSION="v1.1.0"
+VERSION="v1.1.2"
 SCRIPT_DATE="2026-09-23"
 SCRIPT_AUTHOR="Bruno DELNOZ"
 SCRIPT_EMAIL="bruno.delnoz@protonmail.com"
@@ -199,6 +199,8 @@ COMMON OPTIONS:
 
   -d, --duration SECONDS
       Action/session duration in seconds.
+      Discovery uses bluetoothctl's non-interactive --timeout so the scan stays
+      active for the requested slice duration.
 
   --infinite
       Infinite monitor until CTRL-C.
@@ -219,6 +221,9 @@ COMMON OPTIONS:
 
   --redteam
       Direct alias for --profile redteam.
+      After each discovery slice, observed remote devices receive bounded active
+      Classic SDP enumeration when sdptool is available. It does NOT auto-connect,
+      pair, trust or remove devices.
 
   --aggressive-scan
       Compatibility alias for --redteam / --profile redteam.
@@ -289,6 +294,35 @@ EOF
 
 show_changelog() {
     cat <<'EOF'
+v1.1.2 — 2026-09-23
+- FIXED: the local Bluetooth controller MAC is no longer counted as a discovered
+  remote device. Slice membership is extracted only from BlueZ `Device <MAC>`
+  events, never `Controller <MAC>` events.
+- FIXED: per-slice RSSI is extracted from the last RSSI event observed for each
+  remote device in the exact raw scan window. `bluetoothctl info` is only a
+  fallback when the raw slice contains no RSSI for that device.
+- CHANGED: --redteam now performs a real bounded active enrichment step after
+  discovery: Classic SDP browse probes are attempted for observed remote devices
+  when sdptool is available. This never auto-connects, pairs, trusts or removes
+  a device.
+- ADDED: per-slice Red Team report under .results/raw/*.redteam.txt.
+- ADDED: redteam_probe_count and redteam_probe_success_count metadata.
+- PRESERVED: real scan timing, early-return guard, rfkill/Powered readiness,
+  --passive/--active/--redteam aliases and the v1.1.1 runtime layout.
+
+v1.1.1 — 2026-09-23
+- FIXED: discovery slices now use bluetoothctl --timeout SECONDS so a requested
+  duration is a real scan window instead of returning immediately after setting
+  the discovery filter.
+- FIXED: each slice inventory is built only from MAC addresses actually observed
+  in that slice's bluetoothctl output; cached/stale BlueZ device objects are not
+  automatically imported into the slice.
+- ADDED: scan readiness checks for rfkill soft-block and Powered=no.
+- CHANGED: --power-on unblocks Bluetooth through rfkill before powering BlueZ on.
+- ADDED: early-return guard: a scan that exits materially before its requested
+  duration is rejected instead of generating misleading interval sets.
+- FIXED: RSSI monitoring uses the same bluetoothctl --timeout timing model.
+
 v1.1.0 — 2026-09-23
 - Added direct profile aliases: --passive, --active, --redteam.
 - --aggressive-scan remains a compatibility alias for the Red Team profile.
@@ -811,8 +845,14 @@ simulation_stop() {
     say "SIMULATION — no Bluetooth/system change will be performed."
     print_config
     case "$ACTION" in
-        scan) say "Would run one discovery slice and inventory devices." ;;
-        monitor) say "Would run rolling discovery slices and per-slice inventory." ;;
+        scan)
+            say "Would run one discovery slice and inventory remote devices."
+            [[ "$PROFILE" == "redteam" ]] && say "Would then run bounded active Classic SDP enrichment on observed remote devices."
+            ;;
+        monitor)
+            say "Would run rolling discovery slices and per-slice remote-device inventory."
+            [[ "$PROFILE" == "redteam" ]] && say "Would run bounded active Classic SDP enrichment after each slice."
+            ;;
         fingerprint) say "Would inspect target $TARGET with bluetoothctl info." ;;
         enum-services) say "Would inspect target $TARGET UUID/SDP services." ;;
         capture-btmon) say "Would capture HCI traffic with btmon." ;;
@@ -826,6 +866,156 @@ simulation_stop() {
         hotplug-test) say "Would inspect USB/service hotplug state." ;;
     esac
     exit 0
+}
+
+bluetooth_soft_blocked() {
+    has_cmd rfkill || return 1
+    rfkill list bluetooth 2>/dev/null | awk '
+        /Soft blocked:/ {
+            if (tolower($3) == "yes") found=1
+        }
+        END { exit(found ? 0 : 1) }
+    '
+}
+
+controller_powered() {
+    bluetoothctl show 2>/dev/null | awk -F': ' '
+        /^[[:space:]]*Powered:/ {
+            if (tolower($2) == "yes") ok=1
+        }
+        END { exit(ok ? 0 : 1) }
+    '
+}
+
+scan_readiness_check() {
+    need_cmd bluetoothctl
+
+    if bluetooth_soft_blocked; then
+        err "Bluetooth est soft-blocked par rfkill."
+        err "Commande corrective : ./bt_air_suite.sh --exec --power-on"
+        return 1
+    fi
+
+    if ! controller_powered; then
+        err "Le contrôleur Bluetooth est éteint (Powered=no)."
+        err "Commande corrective : ./bt_air_suite.sh --exec --power-on"
+        return 1
+    fi
+
+    return 0
+}
+
+strip_ansi() {
+    # bluetoothctl can emit terminal colour/control sequences.
+    sed -E $'s/\x1B\\[[0-9;?]*[ -\\/]*[@-~]//g'
+}
+
+extract_seen_macs() {
+    local raw="$1"
+    local output="$2"
+
+    # BlueZ scan output contains both:
+    #   [CHG] Controller AA:BB:... Discovering: yes
+    #   [NEW]/[CHG]/[DEL] Device CC:DD:...
+    #
+    # Only remote Device events define membership of a scan slice.  This prevents
+    # the local controller address from leaking into CSV/JSONL/filtered results.
+    strip_ansi < "$raw" \
+        | awk '
+            match($0, /Device[[:space:]]+([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}/) {
+                value=substr($0, RSTART, RLENGTH)
+                sub(/^Device[[:space:]]+/, "", value)
+                print toupper(value)
+            }
+        ' \
+        | awk '!seen[$0]++' > "$output" || true
+}
+
+last_rssi_from_raw() {
+    local raw="$1"
+    local mac="$2"
+
+    strip_ansi < "$raw" | awk -v target="$mac" '
+        BEGIN { target=toupper(target); value="" }
+
+        {
+            line=toupper($0)
+
+            if (index(line, "DEVICE " target " ") == 0) {
+                next
+            }
+
+            if (index(line, "RSSI:") == 0) {
+                next
+            }
+
+            # BlueZ commonly renders:
+            #   RSSI: 0xffffffcc (-52)
+            # but some versions can expose a direct decimal.
+            if (match($0, /\(-?[0-9]+\)/)) {
+                v=substr($0, RSTART+1, RLENGTH-2)
+                value=v
+                next
+            }
+
+            if (match($0, /RSSI:[[:space:]]*-?[0-9]+/)) {
+                v=substr($0, RSTART, RLENGTH)
+                sub(/^RSSI:[[:space:]]*/, "", v)
+                value=v
+            }
+        }
+
+        END {
+            if (value != "") print value
+        }
+    '
+}
+
+run_discovery_window() {
+    local duration="$1"
+    local mode="$2"
+    local raw="$3"
+    local started finished elapsed rc tolerance
+
+    started="$(date +%s)"
+
+    # Important: `bluetoothctl scan on` can return immediately in non-interactive
+    # invocation after configuring discovery. BlueZ's own --timeout option keeps
+    # the non-interactive client alive for the requested discovery window.
+    bluetoothctl --timeout "$duration" scan "$mode" 2>&1 \
+        | tee -a "$raw" "$ACTION_LOG_FILE"
+    rc=${PIPESTATUS[0]}
+
+    # Best-effort explicit cleanup in case the client/daemon kept discovery state.
+    bluetoothctl scan off >/dev/null 2>&1 || true
+
+    finished="$(date +%s)"
+    elapsed=$(( finished - started ))
+
+    {
+        echo
+        echo "scan_requested_seconds=$duration"
+        echo "scan_elapsed_seconds=$elapsed"
+        echo "scan_return_code=$rc"
+    } >> "$raw"
+
+    # Permit a small wall-clock rounding margin. Anything much shorter is not a
+    # valid interval and must not be turned into a misleading result set.
+    tolerance=2
+    if (( duration > tolerance && elapsed < duration - tolerance )); then
+        err "Scan terminé trop tôt : ${elapsed}s écoulée(s), ${duration}s demandées."
+        err "La tranche est rejetée pour éviter un faux résultat d'intervalle."
+        if bluetooth_soft_blocked || ! controller_powered; then
+            err "État contrôleur invalide détecté. Lance : ./bt_air_suite.sh --exec --power-on"
+        fi
+        return 1
+    fi
+
+    if (( rc != 0 )); then
+        warn "bluetoothctl scan a retourné le code $rc après ${elapsed}s."
+    fi
+
+    return 0
 }
 
 scan_arg() {
@@ -885,40 +1075,54 @@ device_field() {
 
 write_inventory() {
     local raw="$1"
-    local csv="$2"
-    local jsonl="$3"
-    local devices mac label info_text name alias rssi txpower icon paired trusted connected status uuids ts
+    local seen_file="$2"
+    local csv="$3"
+    local jsonl="$4"
+    local mac info_text name alias rssi txpower icon paired trusted connected status uuids ts label count=0
 
     ts="$(date --iso-8601=seconds 2>/dev/null || date)"
 
     printf '%s\n' 'timestamp,mac,label,name,alias,rssi,tx_power,icon,paired,trusted,connected,status,uuids' > "$csv"
     : > "$jsonl"
 
-    devices="$(bluetoothctl devices 2>/dev/null || true)"
-    printf '%s\n' "$devices" >> "$raw"
+    {
+        echo
+        echo "===== MACS OBSERVED IN THIS SLICE ====="
+        cat "$seen_file" 2>/dev/null || true
+    } >> "$raw"
 
-    while read -r _ mac label; do
+    while IFS= read -r mac; do
         valid_mac "${mac:-}" || continue
         mac="$(normalize_mac "$mac")"
+        ((count++))
 
+        # Enrich only addresses proven to have occurred in this slice.
+        # If the BlueZ object disappears before enrichment, retain the observed
+        # MAC with empty properties instead of inventing data.
         info_text="$(bluetoothctl info "$mac" 2>/dev/null || true)"
-        printf '\n===== %s =====\n%s\n' "$mac" "$info_text" >> "$raw"
+        printf '\n===== INFO %s =====\n%s\n' "$mac" "$info_text" >> "$raw"
 
         name="$(device_field "$info_text" "Name")"
         alias="$(device_field "$info_text" "Alias")"
-        rssi="$(device_field "$info_text" "RSSI")"
+
+        # RSSI is dynamic and can disappear from `bluetoothctl info` immediately
+        # after discovery. Prefer the last RSSI event from this exact scan slice.
+        rssi="$(last_rssi_from_raw "$raw" "$mac")"
+        [[ -n "$rssi" ]] || rssi="$(device_field "$info_text" "RSSI")"
+
         txpower="$(device_field "$info_text" "TxPower")"
         icon="$(device_field "$info_text" "Icon")"
         paired="$(device_field "$info_text" "Paired")"
         trusted="$(device_field "$info_text" "Trusted")"
         connected="$(device_field "$info_text" "Connected")"
         uuids="$(printf '%s\n' "$info_text" | awk -F': ' '/^[[:space:]]*UUID:/ {sub(/^[^:]*: /,""); printf "%s%s", sep, $0; sep=" | "} END{print ""}')"
+        label="${name:-${alias:-}}"
         status="$(known_status "$mac")"
 
         {
             csv_escape "$ts"; printf ','
             csv_escape "$mac"; printf ','
-            csv_escape "${label:-}"; printf ','
+            csv_escape "$label"; printf ','
             csv_escape "$name"; printf ','
             csv_escape "$alias"; printf ','
             csv_escape "$rssi"; printf ','
@@ -932,13 +1136,16 @@ write_inventory() {
         } >> "$csv"
 
         printf '{"timestamp":"%s","mac":"%s","label":"%s","name":"%s","alias":"%s","rssi":"%s","tx_power":"%s","icon":"%s","paired":"%s","trusted":"%s","connected":"%s","status":"%s","uuids":"%s"}\n' \
-            "$(json_escape "$ts")" "$(json_escape "$mac")" "$(json_escape "${label:-}")" \
+            "$(json_escape "$ts")" "$(json_escape "$mac")" "$(json_escape "$label")" \
             "$(json_escape "$name")" "$(json_escape "$alias")" "$(json_escape "$rssi")" \
             "$(json_escape "$txpower")" "$(json_escape "$icon")" "$(json_escape "$paired")" \
             "$(json_escape "$trusted")" "$(json_escape "$connected")" "$(json_escape "$status")" \
             "$(json_escape "$uuids")" >> "$jsonl"
 
-    done <<< "$devices"
+    done < "$seen_file"
+
+    printf '\nseen_device_count=%s\n' "$count" >> "$raw"
+    info "Devices seen this slice: $count"
 }
 
 filter_inventory() {
@@ -992,6 +1199,91 @@ csv_to_markdown() {
     ' "$input" > "$output"
 }
 
+run_redteam_enrichment() {
+    local seen_file="$1"
+    local raw="$2"
+    local out="$3"
+    local mac count=0 success=0
+    local probe_timeout=8
+    local max_targets=12
+    local rc
+
+    [[ "$PROFILE" == "redteam" ]] || return 0
+
+    {
+        echo "bt_air_suite=$VERSION"
+        echo "mode=redteam-active-enrichment"
+        echo "timestamp=$(date --iso-8601=seconds 2>/dev/null || date)"
+        echo "source_raw=$(basename "$raw")"
+        echo "probe=classic-sdp-browse"
+        echo "probe_timeout_seconds=$probe_timeout"
+        echo "max_targets=$max_targets"
+        echo
+        echo "NOTE:"
+        echo "- No automatic connect"
+        echo "- No automatic pair"
+        echo "- No trust/remove"
+        echo "- No destructive/fuzz/jamming action"
+        echo
+    } > "$out"
+
+    if ! has_cmd sdptool; then
+        echo "sdptool unavailable: active Classic SDP enrichment skipped." >> "$out"
+        warn "REDTEAM: sdptool absent, active SDP enrichment skipped."
+        return 0
+    fi
+
+    while IFS= read -r mac; do
+        valid_mac "${mac:-}" || continue
+        (( count >= max_targets )) && {
+            warn "REDTEAM: target cap reached ($max_targets); remaining devices not actively probed."
+            break
+        }
+
+        ((count++))
+
+        {
+            echo "================================================================"
+            echo "TARGET $count: $mac"
+            echo "================================================================"
+            echo
+            echo "===== bluetoothctl info ====="
+            bluetoothctl info "$mac" 2>&1 || true
+            echo
+            echo "===== bounded Classic SDP browse (${probe_timeout}s max) ====="
+        } >> "$out"
+
+        set +e
+        timeout --foreground --signal=INT --kill-after=2s "${probe_timeout}s" \
+            sdptool browse "$mac" >> "$out" 2>&1
+        rc=$?
+        set -e 2>/dev/null || true
+
+        case "$rc" in
+            0)
+                ((success++))
+                echo "redteam_probe_result=success" >> "$out"
+                ;;
+            124|130|137)
+                echo "redteam_probe_result=timeout_or_interrupted rc=$rc" >> "$out"
+                ;;
+            *)
+                echo "redteam_probe_result=not_available_or_failed rc=$rc" >> "$out"
+                ;;
+        esac
+        echo >> "$out"
+    done < "$seen_file"
+
+    {
+        echo
+        echo "redteam_probe_count=$count"
+        echo "redteam_probe_success_count=$success"
+    } >> "$out"
+
+    info "REDTEAM active probes: $count target(s), $success SDP success(es)"
+    ok "REDTEAM report: $out"
+}
+
 post_process_inventory() {
     local csv="$1"
     local base filtered md
@@ -1021,7 +1313,7 @@ post_process_inventory() {
 run_scan_slice() {
     local duration="$1"
     local slice_index="${2:-1}"
-    local mode raw csv jsonl rc
+    local mode raw csv jsonl seen
 
     generate_prefix
     setup_logs
@@ -1029,6 +1321,7 @@ run_scan_slice() {
     raw="$RAW_DIR/${PREFIX}.raw.txt"
     csv="$CSV_DIR/${PREFIX}.csv"
     jsonl="$JSONL_DIR/${PREFIX}.jsonl"
+    seen="$TMP_DIR/${PREFIX}.seen_macs.txt"
 
     info "SCAN slice=$slice_index duration=${duration}s transport=$TRANSPORT profile=$PROFILE"
     info "Raw: $raw"
@@ -1042,21 +1335,16 @@ run_scan_slice() {
         echo
     } > "$raw"
 
-    # bluetoothctl scan is attached to its D-Bus client. Bound the client duration.
-    set +e
-    timeout --foreground --signal=INT --kill-after=2s "${duration}s" \
-        bluetoothctl scan "$mode" 2>&1 | tee -a "$raw" "$ACTION_LOG_FILE"
-    rc=${PIPESTATUS[0]}
-    set -e 2>/dev/null || true
+    scan_readiness_check || return 1
+    run_discovery_window "$duration" "$mode" "$raw" || return 1
 
-    bluetoothctl scan off >/dev/null 2>&1 || true
+    extract_seen_macs "$raw" "$seen"
+    write_inventory "$raw" "$seen" "$csv" "$jsonl"
 
-    case "$rc" in
-        0|124|130|137) ;;
-        *) warn "bluetoothctl scan returned $rc" ;;
-    esac
+    if [[ "$PROFILE" == "redteam" ]]; then
+        run_redteam_enrichment             "$seen"             "$raw"             "$RAW_DIR/${PREFIX}.redteam.txt"
+    fi
 
-    write_inventory "$raw" "$csv" "$jsonl"
     ok "CSV   : $csv"
     ok "JSONL : $jsonl"
 
@@ -1076,7 +1364,7 @@ prepare_acquisition() {
 run_scan() {
     simulation_stop
     prepare_acquisition
-    run_scan_slice "$(default_scan_duration)" 1
+    run_scan_slice "$(default_scan_duration)" 1         || die "Scan invalide ou interrompu avant la durée demandée."
 }
 
 run_monitor() {
@@ -1096,7 +1384,7 @@ run_monitor() {
     if (( INFINITE == 1 )) || [[ -z "$DURATION" ]]; then
         info "MONITOR infinite. Slice=${interval_seconds}s"
         while :; do
-            run_scan_slice "$interval_seconds" "$index"
+            run_scan_slice "$interval_seconds" "$index"                 || die "Tranche $index invalide ; monitor arrêté."
             ((index++))
         done
     fi
@@ -1109,7 +1397,7 @@ run_monitor() {
         else
             slice_duration="$interval_seconds"
         fi
-        run_scan_slice "$slice_duration" "$index"
+        run_scan_slice "$slice_duration" "$index"             || die "Tranche $index invalide ; monitor arrêté."
         remaining=$(( remaining - slice_duration ))
         ((index++))
     done
@@ -1199,8 +1487,9 @@ run_rssi_monitor() {
 
     printf 'timestamp,mac,rssi\n' > "$out"
 
-    timeout --foreground --signal=INT --kill-after=2s "${duration}s" \
-        bluetoothctl scan "$(scan_arg)" >"$scanlog" 2>&1 &
+    scan_readiness_check || die "Contrôleur non prêt pour le suivi RSSI."
+
+    bluetoothctl --timeout "$duration" scan "$(scan_arg)" >"$scanlog" 2>&1 &
     local scanpid=$!
 
     start="$(date +%s)"
@@ -1215,6 +1504,12 @@ run_rssi_monitor() {
 
     wait "$scanpid" 2>/dev/null || true
     bluetoothctl scan off >/dev/null 2>&1 || true
+
+    now="$(date +%s)"
+    if (( duration > 2 && now - start < duration - 2 )); then
+        warn "Le scan RSSI s'est arrêté avant la durée demandée."
+    fi
+
     ok "RSSI CSV: $out"
 }
 
@@ -1259,6 +1554,13 @@ run_power() {
     local state="$1"
     simulation_stop
     need_cmd bluetoothctl
+
+    if [[ "$state" == "on" ]] && has_cmd rfkill && bluetooth_soft_blocked; then
+        sudo_ready
+        info "rfkill: déblocage Bluetooth."
+        run_privileged rfkill unblock bluetooth             || die "Impossible de débloquer Bluetooth via rfkill."
+    fi
+
     run_btctl_script 10 "power $state" "show"
 }
 

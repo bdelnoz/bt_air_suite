@@ -3,12 +3,12 @@ DOCUMENT INFORMATION
 Document Name: SPECIFICATIONS.md
 Author: Bruno DELNOZ
 Email: bruno.delnoz@protonmail.com
-Version: v1.1.0
+Version: v1.1.2
 Date / Time: 2026-09-23
 Project: bt_air_suite / bt_air_suite.sh
 -->
 
-# SPECIFICATIONS — Initial unified Bluetooth Swiss Army Knife — v1.1.0
+# SPECIFICATIONS — Initial unified Bluetooth Swiss Army Knife — v1.1.2
 
 ## 1. Purpose
 
@@ -131,6 +131,59 @@ The Red Team profile selects more aggressive inspection defaults but does not au
 ### FR-22 — UB500 hotplug
 
 Install/remove/test actions preserve the useful secure-on-attach concept for a configurable `VVVV:PPPP` USB ID.
+
+
+### FR-23 — real scan duration
+
+Discovery must use BlueZ non-interactive timeout semantics:
+
+```text
+bluetoothctl --timeout SECONDS scan on|le|bredr
+```
+
+A scan that exits materially before the requested duration is invalid.
+
+### FR-24 — per-slice observed membership
+
+CSV/JSONL membership must be derived from MAC addresses actually present in the raw output of the current scan slice.
+
+A global cached BlueZ device list must not define membership for the slice.
+
+### FR-25 — scan readiness
+
+Discovery must reject a controller that is soft-blocked or `Powered=no` and print the exact corrective command.
+
+### FR-26 — power-on recovery
+
+`--power-on` must clear a Bluetooth rfkill soft block before issuing BlueZ `power on`.
+
+
+### FR-27 — exclude the local controller
+
+Slice membership must be extracted from BlueZ `Device <MAC>` events only.
+
+`Controller <MAC>` events must never create CSV/JSONL rows.
+
+### FR-28 — RSSI source priority
+
+For each remote device:
+
+1. use the last RSSI event observed inside the exact raw slice;
+2. fall back to `bluetoothctl info` only when the raw slice contains no RSSI.
+
+### FR-29 — Red Team active enrichment
+
+When `PROFILE=redteam`, every completed discovery slice must run a bounded active Classic SDP enumeration step for observed remote devices when `sdptool` is available.
+
+The enrichment:
+- has an 8-second timeout per target;
+- processes at most 12 targets per slice;
+- creates `.results/raw/<prefix>.redteam.txt`;
+- never automatically connects, pairs, trusts or removes a device.
+
+### FR-30 — Red Team separation
+
+`--connect-test` and `--pair-test` remain explicit actions and are never implicitly triggered by `--redteam`.
 
 ## 3. Out of scope for v1.0.0
 

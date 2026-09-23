@@ -3,12 +3,12 @@ DOCUMENT INFORMATION
 Document Name: INSTALL.md
 Author: Bruno DELNOZ
 Email: bruno.delnoz@protonmail.com
-Version: v1.1.0
+Version: v1.1.2
 Date / Time: 2026-09-23
 Project: bt_air_suite / bt_air_suite.sh
 -->
 
-# INSTALL — bt_air_suite.sh — v1.1.0
+# INSTALL — bt_air_suite.sh — v1.1.2
 
 ## 1. Target environment
 
@@ -91,6 +91,23 @@ Expected layout:
 ./bt_air_suite.sh --show-paths
 ```
 
+
+## Controller readiness before scanning
+
+Check:
+
+```bash
+./bt_air_suite.sh --status
+```
+
+If Bluetooth is soft-blocked or the controller is powered off:
+
+```bash
+./bt_air_suite.sh --exec --power-on
+```
+
+v1.1.1 refuses to generate scan slices until the controller is ready.
+
 ## 7. Safe simulation
 
 ```bash
@@ -150,3 +167,21 @@ bash -n bt_air_suite.sh
 ./bt_air_suite.sh --simulate --scan --transport le -d 20
 ./bt_air_suite.sh --simulate --fingerprint --target AA:BB:CC:DD:EE:FF
 ```
+
+
+## Red Team v1.1.2 behavior
+
+A real Red Team monitor:
+
+```bash
+./bt_air_suite.sh --exec --monitor \
+  --redteam \
+  --duration 300 \
+  --interval 1 \
+  --post-process \
+  --nolog
+```
+
+now performs the 60-second discovery slice first, then bounded Classic SDP enrichment for the remote devices actually observed in that slice.
+
+`sdptool` is optional. If absent, discovery/inventory continues and the active SDP enrichment is skipped with a warning.
